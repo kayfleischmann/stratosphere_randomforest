@@ -1,4 +1,4 @@
-package bigdataproject.test
+package bigdataproject.scala.eu.stratosphere.test
 
 import eu.stratosphere.pact.client.LocalExecutor
 import bigdataproject.scala.eu.stratosphere.ml.randomforest.buildDecisionTree
