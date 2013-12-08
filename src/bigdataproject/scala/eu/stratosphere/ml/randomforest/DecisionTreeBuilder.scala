@@ -42,7 +42,7 @@ class DecisionTreeBuilder( var nodeQueue : List[TreeNode]) extends PlanAssembler
     					nodeQueue
     							.filter { node => node.baggingTable.contains(index) }
 		    					.flatMap( node => 
-		    					  // for each feature in node-featureSpace and 
+		    					  // filter feature space for this node, and ignore the other features
 		    					  	features.split(" ").zipWithIndex.filter( f => node.featureSpace.contains(f._2) ).map( feature =>  
 		    					  	  	(	node.treeId+"_"+node.nodeId+"_"+label+"_"+feature._2, 
 		    					  			node.baggingTable.count( _ == index), 
