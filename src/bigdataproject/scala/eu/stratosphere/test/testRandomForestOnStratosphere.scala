@@ -33,8 +33,9 @@ object testRandomForestOnStratosphere {
 	 System.out.println( h.getBins.toString )
 	 
 	 
-	 System.out.println( h.sum(15)  ) 
+	 System.out.println( h.sum(40)  ) 
 
+	 //System.out.println( h.uniform(3)  ) 
 	 /*
 	 h.merge( h )
 	 val h2 = h.merge( h )

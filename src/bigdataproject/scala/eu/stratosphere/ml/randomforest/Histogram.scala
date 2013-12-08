@@ -4,19 +4,32 @@ case class Histogram(maxBins : Integer) {
   var bins = scala.collection.mutable.Buffer[(Double,Int)]()
   def getBins = bins
  
-  def uniform( newMaxBin : Integer ) = {
-    
+  def uniform( Bnew : Integer ) = {
+    val u = Set[Double]()
+    val sums = bins.map(x=>sum(x._1))
+    for(j<- 1 to Bnew){
+     val s=j/Bnew * bins.map(_._2).sum
+     val i = sums.zipWithIndex.filter( x=>(x._1<s) )
+     System.out.println(i)
+    }
+    u
   }
   def sum(b:Double) = {
     val pos =  bins.zipWithIndex.filter( x=>(x._1._1<b) )
-    val i = pos.last._2
-    val bi = bins(i)
-    val bi1 = bins(i+1)
-    val mb =  bi._2 + ((bi1._2-bi._2)/(bi1._1-bi._1)) * (b - bi._1 ) 
-    var s = ((bi._2+mb) / 2) * ((b - bi._1 )/(bi1._1-bi._1))
-    for (j <- 0 until i)  s += bins(j)._2
-    s = s + bins(i)._2 / 2
-    s
+    if(pos.length==0)
+     0
+    else if( pos.length == bins.length )
+     bins.map(_._2).sum
+    else {
+      val i = pos.last._2
+      val bi = bins(i)
+      val bi1 = bins(i+1)
+      val mb =  bi._2 + ((bi1._2-bi._2)/(bi1._1-bi._1)) * (b - bi._1 ) 
+      var s = ((bi._2+mb) / 2) * ((b - bi._1 )/(bi1._1-bi._1))
+      for (j <- 0 until i)  s += bins(j)._2
+      s = s + bins(i)._2 / 2
+      s
+    }
   }  
   def merge(h:Histogram) = {
     val h2 = new Histogram(maxBins)
