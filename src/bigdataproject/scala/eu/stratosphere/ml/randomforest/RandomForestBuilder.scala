@@ -28,18 +28,19 @@ class RandomForestBuilder {
     arr;
   }
   def build = {
-    val numTrees = 100
-    val nodesQueue = new Array[TreeNode](numTrees)
+    val numTrees = 5
+    val nodesQueue = scala.collection.mutable.Buffer[TreeNode]()
+    
     val totalFeatureCount = 784 
-    val numberSplitCondidates = 10
+    val numberSplitCondidates = 2
     var featureSubspaceCount = math.round(math.log(totalFeatureCount).toFloat + 1);
     
     // add node to build for each tree
     for (tree <- 0 to numTrees-1 ){
       var features = (0 until totalFeatureCount).toSet
       var featureSubspace = generateFeatureSubspace(featureSubspaceCount, totalFeatureCount)
-      
-      nodesQueue(tree)=( new TreeNode(tree,0,generateRandomBaggingTable(getSampleCount), features, null, featureSubspace,-1, false ) )
+
+      nodesQueue +=( new TreeNode(tree,0,generateRandomBaggingTable(getSampleCount), features, null, featureSubspace,-1, false ) )
     }//for
     
     // if next level, read from file which node has to be split
@@ -60,7 +61,7 @@ class RandomForestBuilder {
     println("Writing trees output to " + outputTreePath)
 
     // distribute the nodesQueue 
-    val plan = new DecisionTreeBuilder(nodesQueue).getPlan(inputPath, outputNodeQueuePath, outputTreePath, ""+numTrees )
+    val plan = new DecisionTreeBuilder(nodesQueue.toList).getPlan(inputPath, outputNodeQueuePath, outputTreePath, ""+numTrees )
 
     val ex = new LocalExecutor()
     ex.start()

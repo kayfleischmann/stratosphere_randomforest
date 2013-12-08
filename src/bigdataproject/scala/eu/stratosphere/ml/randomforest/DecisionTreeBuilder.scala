@@ -9,7 +9,7 @@ import eu.stratosphere.pact.client.LocalExecutor
 
 import util.Random
   
-class DecisionTreeBuilder( var nodeQueue : Array[TreeNode]) extends PlanAssembler with PlanAssemblerDescription with Serializable {
+class DecisionTreeBuilder( var nodeQueue : List[TreeNode]) extends PlanAssembler with PlanAssemblerDescription with Serializable {
 
   
   override def getDescription() = {
@@ -41,44 +41,38 @@ class DecisionTreeBuilder( var nodeQueue : Array[TreeNode]) extends PlanAssemble
     				.flatMap { case (index,label, features ) => 
     					nodeQueue
     							.filter { node => node.baggingTable.contains(index) }
-		    					.map( node => 
-		    					  		(	node.treeId+"_"+node.nodeId+"_"+label, 
+		    					.flatMap( node => 
+		    					  // for each feature in node-featureSpace and 
+		    					  	features.split(" ").zipWithIndex.filter( f => node.featureSpace.contains(f._2) ).map( feature =>  
+		    					  	  	(	node.treeId+"_"+node.nodeId+"_"+label+"_"+feature._2, 
 		    					  			node.baggingTable.count( _ == index), 
-		    					  			features.split(" ").zipWithIndex.filter( x => node.featureSpace.contains(x._2) ).map( f => f._1 ).mkString(" "),
-		    					  			label) )
+		    					  			feature._1, // feature value
+		    					  			feature._2, // feature index
+		    					  			label )
+		    					  			) )	
     					}
     
     val nodeClassHistograms = treenode_samples
       .groupBy { _._1 }
       .reduceGroup { values =>
+        
         		val buckets = 10
       			val buffered = values.buffered
       			val treeAndNode = buffered.head._1
       			val treeId = treeAndNode.split("_")(0).toInt
       			val nodeId = treeAndNode.split("_")(1).toInt        
       			val label =  treeAndNode.split("_")(2).toInt
+      			val feature =  treeAndNode.split("_")(3).toInt
       			
       			
       			// generate class histogram
-      			val classHistograms = values
-      				.map ( x => {
-      					// extract feature vector
-      					val vec = x._3.split(" ").map( _.toDouble )
-      					// generate a histogram for each vector
-      					vec.map( new Histogram(buckets).update(_) )
-      				})
-      				.reduceLeft( (s1,s2) => s1.zip(s2).map( h => h._1.merge(h._2) ) )
-      			//classHistograms.map( classHistogram => (treeId+"_"+nodeId, label, classHistogram.toString ) )
-      			
-      			val out = scala.collection.mutable.Buffer.empty[(String,Int, String)]
-      			for(i <- 0 until classHistograms.length ) {
-      			  out +=( (treeId+"_"+nodeId, label, "test" ) )
-      			}
-        		out
-      			
+      			val classFeatureHistograms = buffered
+      				.map ( x => new Histogram(buckets).update( x._3.toDouble ) )
+      				.reduceLeft( (h1,h2) => h1.merge(h2) )
+      				
+      			(treeId+"_"+nodeId+"", label, feature, classFeatureHistograms.toString )
       	}
       
-
    val nodeHistograms = nodeClassHistograms
       .groupBy { _._1  }
       .reduceGroup { values =>
@@ -94,7 +88,7 @@ class DecisionTreeBuilder( var nodeQueue : Array[TreeNode]) extends PlanAssemble
 
       			// store new node
       			(nodeId,treeId,values.length)
-      		}*/
+      		}
       
     val sink = nodeClassHistograms.write( outputPath, CsvOutputFormat("\n",","))
     
