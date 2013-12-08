@@ -29,14 +29,18 @@ class RandomForestBuilder {
     val inputPath = "/home/kay/Desktop/small-trainingset"
       
     // Output
-    val outputPath = "file:///home/kay/decisionTree_output"
+    val outputNodeQueuePath = "file:///home/kay/stratosphere_rf_node_queue"
 
+    // Output
+    val outputTreePath = "file:///home/kay/stratosphere_rf_tree"
 
+      
     println("Reading input from " + inputPath)
-    println("Writing output to " + outputPath)
+    println("Writing node-queue output to " + outputNodeQueuePath)
+    println("Writing trees output to " + outputTreePath)
 
     // distribute the nodesQueue 
-    val plan = new buildDecisionTree(nodesQueue).getPlan(inputPath, outputPath, ""+numTrees )
+    val plan = new DecisionTreeBuilder(nodesQueue).getPlan(inputPath, outputNodeQueuePath, outputTreePath, ""+numTrees )
 
     val ex = new LocalExecutor()
     ex.start()
