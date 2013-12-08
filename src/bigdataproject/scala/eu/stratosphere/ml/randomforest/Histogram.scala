@@ -5,14 +5,23 @@ case class Histogram(maxBins : Integer) {
   def getBins = bins
  
   def uniform( Bnew : Integer ) = {
-    val u = Set[Double]()
+    val u = scala.collection.mutable.Buffer[Double]()
     val sums = bins.map(x=>sum(x._1))
-    for(j<- 1 to Bnew){
-     val s=j/Bnew * bins.map(_._2).sum
-     val i = sums.zipWithIndex.filter( x=>(x._1<s) )
-     System.out.println(i)
+    val binSum = bins.map(_._2).sum
+    for(j <- 1 until Bnew){
+     val s= (j.toDouble/Bnew) * binSum.toDouble
+     val i = sums.zipWithIndex.filter( x=>(x._1<s) ).last._2 - 1
+     val d = math.abs(s - sums(i))
+     val pi = bins(i)
+     val pi1 = bins(i+1)
+     val a = pi1._2 - pi._2
+     val b = 2*pi._2
+     val c = -2*d
+     val z = (-b + math.sqrt(b*b - 4*a*c)) / (2*a);
+     val uj = pi._1+(pi1._1 - pi._1)*z
+     u += uj
     }
-    u
+    u.toSet
   }
   def sum(b:Double) = {
     val pos =  bins.zipWithIndex.filter( x=>(x._1._1<b) )
