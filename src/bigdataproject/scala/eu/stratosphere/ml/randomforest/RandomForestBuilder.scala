@@ -36,7 +36,7 @@ class RandomForestBuilder {
     println("Writing output to " + outputPath)
 
     // distribute the nodesQueue 
-    val plan = new buildDecisionTree(nodesQueue).getPlan(inputPath, outputPath, ""+numTrees )
+    val plan = new DecisionTreeBuilder(nodesQueue).getPlan(inputPath, outputPath, ""+numTrees )
 
     val ex = new LocalExecutor()
     ex.start()

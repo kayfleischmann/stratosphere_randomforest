@@ -9,7 +9,7 @@ import eu.stratosphere.pact.client.LocalExecutor
 
 import util.Random
   
-class buildDecisionTree( var nodeQueue : Array[TreeNode]) extends PlanAssembler with PlanAssemblerDescription with Serializable {
+class DecisionTreeBuilder( var nodeQueue : Array[TreeNode]) extends PlanAssembler with PlanAssemblerDescription with Serializable {
 
   
   override def getDescription() = {
@@ -39,7 +39,8 @@ class buildDecisionTree( var nodeQueue : Array[TreeNode]) extends PlanAssembler 
     					nodeQueue
     							.filter { node => node.baggingTable.contains(index) }
 		    					.map( node => (node.treeId+"_"+node.nodeId+"_"+label,node.baggingTable.count( _ == index), features, label) )
-    					}
+
+    			}
     
     val nodeHistograms = treenode_samples
       .groupBy { _._1 }
