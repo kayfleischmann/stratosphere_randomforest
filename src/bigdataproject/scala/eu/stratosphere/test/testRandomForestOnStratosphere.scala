@@ -8,8 +8,8 @@ import bigdataproject.scala.eu.stratosphere.ml.randomforest.Histogram
 object testRandomForestOnStratosphere {
   
   def main(args: Array[String]) { 
-	new RandomForestBuilder().build	
-    //testHistogram
+	//new RandomForestBuilder().build	
+    testHistogram
   }
   def testHistogram = {
 	 val h = new Histogram(5)
@@ -39,5 +39,10 @@ object testRandomForestOnStratosphere {
 
 	 System.out.println( h2.sum(3)  ) 
 	 
+	 val serial = h2.toString
+	 System.out.println(serial)
+	 
+	 val hFromString = Histogram.fromString(serial)
+	 System.out.println(hFromString.toString)
   }
 }

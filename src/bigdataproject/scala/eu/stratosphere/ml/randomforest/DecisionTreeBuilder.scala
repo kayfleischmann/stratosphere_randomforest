@@ -52,7 +52,7 @@ class DecisionTreeBuilder( var nodeQueue : List[TreeNode]) extends PlanAssembler
 		    					  			) )	
     					}
     
-    val nodeClassHistograms = treenode_samples
+    val nodeLabelFeatureHistograms = treenode_samples
       .groupBy { _._1 }
       .reduceGroup { values =>
         
@@ -69,11 +69,13 @@ class DecisionTreeBuilder( var nodeQueue : List[TreeNode]) extends PlanAssembler
       			val classFeatureHistograms = buffered
       				.map ( x => new Histogram(buckets).update( x._3.toDouble ) )
       				.reduceLeft( (h1,h2) => h1.merge(h2) )
-      				
+      	
+      			// emit histogram for treeId_nodeId[feature,label]
+      			// this is used i further processing finding the best split
       			(treeId+"_"+nodeId+"", label, feature, classFeatureHistograms.toString )
       	}
       
-   val nodeHistograms = nodeClassHistograms
+   val nodeHistograms = nodeLabelFeatureHistograms
       .groupBy { _._1  }
       .reduceGroup { values =>
       			val buffered = values.buffered
@@ -87,15 +89,13 @@ class DecisionTreeBuilder( var nodeQueue : List[TreeNode]) extends PlanAssembler
       			// generate new nodes if necessary
 
       			// store new node
-      			(nodeId,treeId,values.length)
+      			// values the numer of features and labels
+      			(treeId,nodeId,values.length)
       		}
       
-    val sink = nodeClassHistograms.write( outputPath, CsvOutputFormat("\n",","))
-    
-    //val sink2 = nodeHistograms.write( outputPath, CsvOutputFormat("\n",","))
+    val sink = nodeHistograms.write( outputPath, CsvOutputFormat("\n",","))
 
-    
     new ScalaPlan(Seq(sink))
   }
-  
+
 }

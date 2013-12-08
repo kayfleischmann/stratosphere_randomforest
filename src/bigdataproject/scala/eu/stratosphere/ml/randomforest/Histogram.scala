@@ -1,5 +1,5 @@
 package bigdataproject.scala.eu.stratosphere.ml.randomforest
-  
+
 case class Histogram(maxBins : Integer) {
   var bins = scala.collection.mutable.Buffer[(Double,Int)]()
   def getBins = bins
@@ -50,6 +50,16 @@ case class Histogram(maxBins : Integer) {
     }
   }
   override def toString = {
-    bins.toString
+    maxBins+";"+bins.map(x=>""+x._1+" "+x._2).mkString(",")
+  }
+}
+object Histogram {
+  def fromString(str:String) = {
+    val values = str.split(";")
+    val maxBins=values(0).toInt
+    val bins = values(1).split(",").map( x=> (x.split(" ")(0).toDouble, x.split(" ")(1).toInt ) )
+    val h = new Histogram(maxBins)
+    bins.foreach( b => h.update(b._1, b._2) )
+    h
   }
 }
