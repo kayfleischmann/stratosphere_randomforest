@@ -28,7 +28,7 @@ class RandomForestBuilder {
     arr;
   }
   def build = {
-    val numTrees = 5
+    val numTrees = 10
     val nodesQueue = scala.collection.mutable.Buffer[TreeNode]()
     
     val totalFeatureCount = 784 
@@ -38,10 +38,10 @@ class RandomForestBuilder {
     for (treeId <- 0 to numTrees-1 ){
       // TODO: the features left is the whole set minus still used best-splits
       var nodeId = 0
-      var features = (0 until totalFeatureCount).toSet // -(getAllBestSplitFeatures(treeId,nodeId)
+      var features = (0 until totalFeatureCount).toSet // remove (getAllBestSplitFeatures(treeId,nodeId)
       var featureSubspace = generateFeatureSubspace(featureSubspaceCount, totalFeatureCount)     
       
-      nodesQueue +=( new TreeNode(treeId,nodeId,generateRandomBaggingTable(getSampleCount), features, null, featureSubspace,-1, false ) )
+      nodesQueue +=( new TreeNode(treeId,nodeId,generateRandomBaggingTable(getSampleCount), features, null, featureSubspace, -1, false ) )
     }//for
     
     // if next level, read from file which node has to be split
