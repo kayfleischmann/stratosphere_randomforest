@@ -34,6 +34,10 @@ object testRandomForestOnStratosphere {
 	 
 	 
 	 h.merge( h )
-	 System.out.println(  h.merge( h ).toString ) 
+	 val h2 = h.merge( h )
+	 System.out.println( h)
+
+	 System.out.println( h2.sum(3)  ) 
+	 
   }
 }

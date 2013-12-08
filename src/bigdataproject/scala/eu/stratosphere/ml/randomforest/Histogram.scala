@@ -3,7 +3,14 @@ package bigdataproject.scala.eu.stratosphere.ml.randomforest
 case class Histogram(maxBins : Integer) {
   var bins = scala.collection.mutable.Buffer[(Double,Int)]()
   def getBins = bins
-  def sum(b:Int) = {
+ 
+  def uniform( maxBin : Integer ) = {
+    
+  }
+  def sum(b:Double) = {
+    val binf =  bins.zipWithIndex.filter( x=>(x._1._1>b) )
+    val pi = binf(0)
+    val pi1 = binf(1)
     
   }  
   def merge(h:Histogram) = {
