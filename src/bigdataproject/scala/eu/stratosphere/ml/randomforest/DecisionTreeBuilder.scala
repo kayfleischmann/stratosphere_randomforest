@@ -58,18 +58,8 @@ class DecisionTreeBuilder( var nodeQueue : Array[TreeNode]) extends PlanAssemble
       			val nodeId = treeAndNode.split("_")(1).toInt        
       			val label =  treeAndNode.split("_")(2).toInt
       			
-      			// generate class histograms for each tree-node			
-      			var histograms = scala.collection.mutable.Buffer[(Int,Histogram)]()
-      			buffered.map( s => {
-      			  val key=s._1
-      			  val count=s._2
-      			  val features=s._3
-      			  val label=s._4
-      			  if( histograms.filter( p => p._1 == label ).length == 0 ) histograms += ( (label, new Histogram(buckets)) )
-      			  
-      			})
       			
-      			//val histogram = values.buffered.map( v => v._3.split(" ") map( _.toDouble * v._2) ).reduceLeft( (x,y) => x.toList.zip(y).map(x=>x._1+x._2).toArray )
+      			
 
       			(treeId+"_"+nodeId, label, 1 /*histogram.length*/ )
       	}
