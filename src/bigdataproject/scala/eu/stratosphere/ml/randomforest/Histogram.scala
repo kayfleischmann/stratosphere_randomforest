@@ -21,10 +21,11 @@ case class Histogram(maxBins : Integer) {
     )
     h2
   }  
-  def update ( p : Double ){
+  def update ( p : Double ) : this.type = {
     update(p,1)
+    this
   }
-  def update ( p : Double, c : Int ){
+  def update ( p : Double, c : Int ) : this.type = {
     var bin = bins.zipWithIndex.find(pm => pm._1._1 == p)
     if( bin != None )
       bins(bin.head._2) = (bin.head._1._1,bin.head._1._2+c)
@@ -33,6 +34,7 @@ case class Histogram(maxBins : Integer) {
      sort
      compress_one
     }
+    this
   }
   private def sort {
      bins=bins.sortWith( (e1, e2) => e1._1 <= e2._1 )

@@ -44,7 +44,7 @@ class DecisionTreeBuilder( var nodeQueue : Array[TreeNode]) extends PlanAssemble
 		    					.map( node => 
 		    					  		(	node.treeId+"_"+node.nodeId+"_"+label, 
 		    					  			node.baggingTable.count( _ == index), 
-		    					  			features.split(" ").zipWithIndex.filter( x => node.features.contains(x._2) ).map( f => f._1 ).mkString,
+		    					  			features.split(" ").zipWithIndex.filter( x => node.featureSpace.contains(x._2) ).map( f => f._1 ).mkString(" "),
 		    					  			label) )
     					}
     
@@ -59,21 +59,34 @@ class DecisionTreeBuilder( var nodeQueue : Array[TreeNode]) extends PlanAssemble
       			val label =  treeAndNode.split("_")(2).toInt
       			
       			
+      			// generate class histogram
+      			val classHistograms = values
+      				.map ( x => {
+      					// extract feature vector
+      					val vec = x._3.split(" ").map( _.toDouble )
+      					// generate a histogram for each vector
+      					vec.map( new Histogram(buckets).update(_) )
+      				})
+      				.reduceLeft( (s1,s2) => s1.zip(s2).map( h => h._1.merge(h._2) ) )
+      			//classHistograms.map( classHistogram => (treeId+"_"+nodeId, label, classHistogram.toString ) )
       			
-
-      			(treeId+"_"+nodeId, label, 1 /*histogram.length*/ )
+      			val out = scala.collection.mutable.Buffer.empty[(String,Int, String)]
+      			for(i <- 0 until classHistograms.length ) {
+      			  out +=( (treeId+"_"+nodeId, label, "test" ) )
+      			}
+        		out
+      			
       	}
       
 
-    val nodeHistograms = nodeClassHistograms
+   val nodeHistograms = nodeClassHistograms
       .groupBy { _._1  }
       .reduceGroup { values =>
       			val buffered = values.buffered
       			val treeAndNode = buffered.head._1
       			val treeId = treeAndNode.split("_")(0).toInt
       			val nodeId = treeAndNode.split("_")(1).toInt 
-      			// select random features (m)
-      			
+
       			// find the best split
       			// store this in separate file
       			
@@ -81,7 +94,7 @@ class DecisionTreeBuilder( var nodeQueue : Array[TreeNode]) extends PlanAssemble
 
       			// store new node
       			(nodeId,treeId,values.length)
-      		}
+      		}*/
       
     val sink = nodeClassHistograms.write( outputPath, CsvOutputFormat("\n",","))
     

@@ -2,7 +2,7 @@ package bigdataproject.scala.eu.stratosphere.ml.randomforest
 
 import scala.util.Random
 import eu.stratosphere.pact.client.LocalExecutor
-
+import java.util.ArrayList
 
 class RandomForestBuilder {
   def getSampleCount() = 10000
@@ -11,15 +11,35 @@ class RandomForestBuilder {
     Array.fill(number) { Random.nextInt(number-1) }
   }
 
-  
+  def generateFeatureSubspace(randomCount : Int, maxRandomNumber : Int) : Array[Int] = {
+    var arrayList = new ArrayList[Int]();
+    // Generate an arrayList of all Integers
+    for(i <- 0 until maxRandomNumber){
+        arrayList.add(i);
+    }
+    var arr : Array[Int] = Array()
+    arr = Array(randomCount)
+    arr = Array.fill(randomCount)(0)
+    for(i <- 0 until randomCount)
+    {
+        var random = new Random().nextInt(arrayList.size());
+        arr(i)=arrayList.remove(random);
+    }
+    arr;
+  }
   def build = {
     val numTrees = 100
     val nodesQueue = new Array[TreeNode](numTrees)
     val totalFeatureCount = 784 
-
+    val numberSplitCondidates = 10
+    var featureSubspaceCount = math.round(math.log(totalFeatureCount).toFloat + 1);
+    
     // add node to build for each tree
     for (tree <- 0 to numTrees-1 ){
-      nodesQueue(tree)=( new TreeNode(tree,0,generateRandomBaggingTable(getSampleCount), (0 until totalFeatureCount).toSet, null, -1, false ) )
+      var features = (0 until totalFeatureCount).toSet
+      var featureSubspace = generateFeatureSubspace(featureSubspaceCount, totalFeatureCount)
+      
+      nodesQueue(tree)=( new TreeNode(tree,0,generateRandomBaggingTable(getSampleCount), features, null, featureSubspace,-1, false ) )
     }//for
     
     // if next level, read from file which node has to be split
