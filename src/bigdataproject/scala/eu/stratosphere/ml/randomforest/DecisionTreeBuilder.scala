@@ -88,10 +88,10 @@ class DecisionTreeBuilder( var nodeQueue : List[TreeNode]) extends PlanAssembler
   				
       			
       			
-      			val label = 1 //buffered.toArray.groupBy( _._5 ).maxBy(x=>x._2.length )._1
+      			val label = 1 // values.toArray.groupBy( _._5 ).maxBy(x=>x._2.length )
       			// decide if there is a stopping condition
       			
-      			// if yes, assign label to the node
+      			// if yes, assign label to the node.
       			// group by label
       			
       			// cerate new bagging tables for the next level
