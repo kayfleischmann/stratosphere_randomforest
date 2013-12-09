@@ -76,24 +76,6 @@ class DecisionTreeBuilder( var nodeQueue : List[TreeNode]) extends PlanAssembler
 
       			val histograms =  mergedHistogram.map( x => x.toString ).mkString("\n")
       			
-      			// compute the best split
-      			val bestSplit = (3 /*feature*/,  22 /*a*/)
-      			
-      			// decide if there is a stopping condition
-      			
-      			// if yes, assign label to the node
-      			// group by label
-      			val labelDistribution = buffered.toArray.groupBy( _._5 ).maxBy(x=>x._2.length )
-      			
-      			// cerate new bagging tables for the next level
-      			val leftNode = buffered.filter( x => x._3 == bestSplit._1 && x._4 <= bestSplit._2).map( x => x._6)
-      			val rightNode = buffered.filter( x => x._3 == bestSplit._1 && x._4 > bestSplit._2).map( x => x._6)
-      		
-      			
-      			// now do the splitting
-      			val leftChild = "left childs" 
-      			val rightChild = "right childs"
-      			  
   				// prob that sample reaches v
   				val tau = 1
   				
@@ -102,9 +84,29 @@ class DecisionTreeBuilder( var nodeQueue : List[TreeNode]) extends PlanAssembler
 
   				// the probabilities of label j in the Right
   				val qRj = 1
+  				
+      			
+      			// compute the best split
+      			val bestSplit = (3 /*feature*/,  22 /*a*/)
+      			
+      			// decide if there is a stopping condition
+      			
+      			// if yes, assign label to the node
+      			// group by label
+      			val label = buffered.toArray.groupBy( _._5 ).maxBy(x=>x._2.length )._1
+      			
+      			// cerate new bagging tables for the next level
+      			val leftNode = buffered.filter( x => x._3 == bestSplit._1 && x._4 <= bestSplit._2).map( x => x._6)
+      			val rightNode = buffered.filter( x => x._3 == bestSplit._1 && x._4 > bestSplit._2).map( x => x._6)
+      		
+      			
+      			// now do the splitting
+      			val leftChild =  leftNode.mkString(" ")
+      			val rightChild = rightNode.mkString(" ")
+      			  
 
   				// emit new node for nodeQueue
-      			(treeId, nodeId, histograms )
+  				(treeId, nodeId, bestSplit._1, bestSplit._2, label, leftChild, rightChild )
       	}
       
       
