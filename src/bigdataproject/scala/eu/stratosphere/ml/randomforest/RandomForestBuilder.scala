@@ -30,7 +30,7 @@ class RandomForestBuilder {
 
   
   def build = {
-    val numTrees = 1
+    val numTrees = 10
     val nodesQueue = scala.collection.mutable.Buffer[TreeNode]()    
     val totalFeatureCount = 784 //TODO: find the amount of number of feature automatically
     var featureSubspaceCount = math.round(math.log(totalFeatureCount).toFloat + 1);
