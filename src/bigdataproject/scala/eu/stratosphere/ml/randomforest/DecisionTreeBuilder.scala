@@ -32,70 +32,64 @@ class DecisionTreeBuilder( var nodeQueue : List[TreeNode]) extends PlanAssembler
 	  val index = values.head.trim().toInt
 	  val label = values.tail.head.trim().toInt
 	  val features = values.tail.tail.mkString(" ")
-	  	(index,label,features)
+	  	(index,label,features.split(" "))
     }
     
-
     // for each sample and each tree and node, create an histogram tuple 
     val treenode_samples = samples  
     				.flatMap { case (index,label, features ) => 
     					nodeQueue
     							.filter { node => node.baggingTable.contains(index) }
 		    					.flatMap( node => 
-		    					  // filter feature space for this node, and ignore the other features
-		    					  	features.split(" ").zipWithIndex.filter( f => node.featureSpace.contains(f._2) ).map( feature =>  
-		    					  	  	(	node.treeId+"_"+node.nodeId+"_"+label+"_"+feature._2, 
+		    					    // filter feature space for this node, and ignore the other features
+		    					   	node.featureSpace.map( feature =>
+		    					  	  	(	node.treeId+"_"+node.nodeId,
 		    					  			node.baggingTable.count( _ == index), 
-		    					  			feature._1, // feature value
-		    					  			feature._2, // feature index
+		    					  			feature, // feature attribute index
+		    					  			features(feature), // feature value
 		    					  			label )
 		    					  			) )	
     					}
     
-    val nodeLabelFeatureHistograms = treenode_samples
+    val newQueueNodesHistograms = treenode_samples
       .groupBy { _._1 }
       .reduceGroup { values =>
-        
         		val buckets = 10
       			val buffered = values.buffered
-      			val treeAndNode = buffered.head._1
-      			val treeId = treeAndNode.split("_")(0).toInt
-      			val nodeId = treeAndNode.split("_")(1).toInt        
-      			val label =  treeAndNode.split("_")(2).toInt
-      			val feature =  treeAndNode.split("_")(3).toInt
-      			
+      			val keyValues = buffered.head._1
+      			val treeId = keyValues.split("_")(0).toInt
+      			val nodeId = keyValues.split("_")(1).toInt        
+
+      			val groupedFeatureTuples = buffered.toArray.groupBy( _._3 )
+      			val featureHistograms = groupedFeatureTuples.map( x => x._2.map ( t => new Histogram(t._3,buckets).update( t._4.toDouble ) ) )
       			
       			// generate class histogram
-      			val classFeatureHistograms = buffered
-      				.map ( x => new Histogram(buckets).update( x._3.toDouble ) )
-      				.reduceLeft( (h1,h2) => h1.merge(h2) )
+      			val mergedHistogram = featureHistograms
+      				.map( x => x.reduceLeft( (h1,h2) => h1.merge(h2) ) )
       	
-      			// emit histogram for treeId_nodeId[feature,label]
-      			// this is used i further processing finding the best split
-      			(treeId+"_"+nodeId+"", label, feature, classFeatureHistograms.toString )
+      			// now do the splitting
+      			val leftChild = ""
+      			val rightChild = ""
+      			  
+  				// prob that sample reaches v
+  				val tau = 1
+  				
+  				// the probabilities of label j in the left
+  				val qLj = 1
+
+  				// the probabilities of label j in the Right
+  				val qRj = 1
+
+  				// emit new node for nodeQueue
+      			(treeId, nodeId, leftChild, rightChild )
       	}
       
-   val nodeHistograms = nodeLabelFeatureHistograms
-      .groupBy { _._1  }
-      .reduceGroup { values =>
-      			val buffered = values.buffered
-      			val treeAndNode = buffered.head._1
-      			val treeId = treeAndNode.split("_")(0).toInt
-      			val nodeId = treeAndNode.split("_")(1).toInt 
-
-      			// find the best split
-      			// store this in separate file
-      			
-      			// generate new nodes if necessary
-
-      			// store new node
-      			// values the numer of features and labels
-      			(treeId,nodeId,values.length)
-      		}
       
-    val sink = nodeHistograms.write( outputPath, CsvOutputFormat("\n",","))
+    val sink = newQueueNodesHistograms.write( outputPath, CsvOutputFormat("\n",","))
 
     new ScalaPlan(Seq(sink))
   }
 
+  def isSplitNode(){
+  }
 }

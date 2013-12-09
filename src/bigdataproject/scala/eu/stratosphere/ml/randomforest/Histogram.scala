@@ -1,16 +1,19 @@
 package bigdataproject.scala.eu.stratosphere.ml.randomforest
 
-case class Histogram(maxBins : Integer) {
+case class Histogram(feature : Integer, maxBins : Integer) {
   var bins = scala.collection.mutable.Buffer[(Double,Int)]()
+  var maxBinValue = 0.0
+  var minBinValue = 0.0
   def getBins = bins
  
+  //TODO: Bug fix
   def uniform( Bnew : Integer ) = {
     val u = scala.collection.mutable.Buffer[Double]()
     val sums = bins.map(x=>sum(x._1))
     val binSum = bins.map(_._2).sum
     for(j <- 1 until Bnew){
      val s= (j.toDouble/Bnew) * binSum.toDouble
-     val i = sums.zipWithIndex.filter( x=>(x._1<s) ).last._2 - 1
+     val i = sums.zipWithIndex.filter( x=>(x._1<s) ).last._2-1
      val d = math.abs(s - sums(i))
      val pi = bins(i)
      val pi1 = bins(i+1)
@@ -23,25 +26,37 @@ case class Histogram(maxBins : Integer) {
     }
     u.toSet
   }
+  
   def sum(b:Double) = {
-    val pos =  bins.zipWithIndex.filter( x=>(x._1._1<b) )
-    if(pos.length==0)
+   if(b>=maxBinValue) {
+     sum_of_bin(maxBinValue+1)
+   }
+   else if(b<=minBinValue) {
      0
-    else if( pos.length == bins.length )
-     bins.map(_._2).sum
-    else {
-      val i = pos.last._2
-      val bi = bins(i)
-      val bi1 = bins(i+1)
-      val mb =  bi._2 + ((bi1._2-bi._2)/(bi1._1-bi._1)) * (b - bi._1 ) 
-      var s = ((bi._2+mb) / 2) * ((b - bi._1 )/(bi1._1-bi._1))
-      for (j <- 0 until i)  s += bins(j)._2
-      s = s + bins(i)._2 / 2
-      s
-    }
+   }
+   else {
+     sum_of_bin(b)
+   }
+  }
+  
+  private def sum_of_bin(b:Double ) = {
+     val pos =  bins.zipWithIndex.filter( x=> x._1._1 < b )
+     if(pos.length==0)
+      0
+     else {
+       val i = pos.last._2
+       val bi = bins(i)
+       val bi1 = bins(i+1)
+       val mb =  bi._2 + ((bi1._2-bi._2)/(bi1._1-bi._1)) * (b - bi._1 ) 
+       var s = ((bi._2+mb) / 2) * ((b - bi._1 )/(bi1._1-bi._1))
+       for (j <- 0 until i)  s += bins(j)._2
+       s = s + bins(i)._2.toDouble / 2
+       s
+     }
   }  
+   
   def merge(h:Histogram) = {
-    val h2 = new Histogram(maxBins)
+    val h2 = new Histogram(feature,maxBins)
     h2.bins = bins.clone
     h.bins.foreach( b => 
       h2.update(b._1, b._2 )
@@ -60,6 +75,8 @@ case class Histogram(maxBins : Integer) {
      bins +=( (p, c) )
      sort
      compress_one
+     maxBinValue=math.max(maxBinValue, p)
+     minBinValue=math.min(minBinValue, p)
     }
     this
   }
@@ -77,15 +94,16 @@ case class Histogram(maxBins : Integer) {
     }
   }
   override def toString = {
-    maxBins+";"+bins.map(x=>""+x._1+" "+x._2).mkString(",")
+    feature+";"+maxBins+";"+bins.map(x=>""+x._1+" "+x._2).mkString(",")
   }
 }
 object Histogram {
   def fromString(str:String) = {
     val values = str.split(";")
-    val maxBins=values(0).toInt
-    val bins = values(1).split(",").map( x=> (x.split(" ")(0).toDouble, x.split(" ")(1).toInt ) )
-    val h = new Histogram(maxBins)
+    val feature=values(0).toInt
+    val maxBins=values(1).toInt
+    val bins = values(2).split(",").map( x=> (x.split(" ")(0).toDouble, x.split(" ")(1).toInt ) )
+    val h = new Histogram(feature,maxBins)
     bins.foreach( b => h.update(b._1, b._2) )
     h
   }

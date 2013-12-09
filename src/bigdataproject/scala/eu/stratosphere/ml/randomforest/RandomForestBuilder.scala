@@ -27,18 +27,22 @@ class RandomForestBuilder {
     }
     arr;
   }
+
+  
   def build = {
-    val numTrees = 10
-    val nodesQueue = scala.collection.mutable.Buffer[TreeNode]()
-    
-    val totalFeatureCount = 784 
+    val numTrees = 1
+    val nodesQueue = scala.collection.mutable.Buffer[TreeNode]()    
+    val totalFeatureCount = 784 //TODO: find the amount of number of feature automatically
     var featureSubspaceCount = math.round(math.log(totalFeatureCount).toFloat + 1);
+
     
     // add node to build for each tree
     for (treeId <- 0 to numTrees-1 ){
       // TODO: the features left is the whole set minus still used best-splits
       var nodeId = 0
       var features = (0 until totalFeatureCount).toSet // remove (getAllBestSplitFeatures(treeId,nodeId)
+      
+      // randomized
       var featureSubspace = generateFeatureSubspace(featureSubspaceCount, totalFeatureCount)     
       
       nodesQueue +=( new TreeNode(treeId,nodeId,generateRandomBaggingTable(getSampleCount), features, null, featureSubspace, -1, false ) )
@@ -52,6 +56,7 @@ class RandomForestBuilder {
       
     // Output
     val outputNodeQueuePath = "file:///home/kay/stratosphere_rf_node_queue"
+    // read from the file and build the TreeNode List
 
     // Output
     val outputTreePath = "file:///home/kay/stratosphere_rf_tree"
