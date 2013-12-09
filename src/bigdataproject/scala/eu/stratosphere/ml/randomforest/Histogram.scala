@@ -2,38 +2,50 @@ package bigdataproject.scala.eu.stratosphere.ml.randomforest
 
 case class Histogram(feature : Integer, maxBins : Integer) {
   var bins = scala.collection.mutable.Buffer[(Double,Int)]()
-  var maxBinValue = 0.0
-  var minBinValue = 0.0
+  var maxBinValue = Double.NegativeInfinity
+  var minBinValue = Double.PositiveInfinity
   def getBins = bins
  
   //TODO: Bug fix
   def uniform( Bnew : Integer ) = {
+    System.out.println("UNIFORM");
     val u = scala.collection.mutable.Buffer[Double]()
     val sums = bins.map(x=>sum(x._1))
     val binSum = bins.map(_._2).sum
-    for(j <- 1 until Bnew){
+    System.out.println("sum:"+binSum)
+    System.out.println(sums)
+    System.out.println("for")
+    for(j <- 1 until Bnew){   
      val s= (j.toDouble/Bnew) * binSum.toDouble
-     val i = sums.zipWithIndex.filter( x=>(x._1<s) ).last._2-1
+     val i = sums.filter( x=>(x<s) ).length-1
      val d = math.abs(s - sums(i))
+
      val pi = bins(i)
      val pi1 = bins(i+1)
+     
+     System.out.println("d:"+d)
+     System.out.println("pi:"+pi)
+     System.out.println("pi1:"+pi1)
+     
      val a = pi1._2 - pi._2
      val b = 2*pi._2
      val c = -2*d
      val z = (-b + math.sqrt(b*b - 4*a*c)) / (2*a);
      val uj = pi._1+(pi1._1 - pi._1)*z
      u += uj
+     
     }
     u.toSet
   }
   
   def sum(b:Double) = {
    if(b>=maxBinValue) {
-     sum_of_bin(maxBinValue+1)
+     bins.map(_._2).sum
    }
-   else if(b<=minBinValue) {
+   else if(b<minBinValue)
      0
-   }
+   else if(b==minBinValue)
+     1
    else {
      sum_of_bin(b)
    }
@@ -42,9 +54,10 @@ case class Histogram(feature : Integer, maxBins : Integer) {
   private def sum_of_bin(b:Double ) = {
      val pos =  bins.zipWithIndex.filter( x=> x._1._1 < b )
      if(pos.length==0)
-      0
+      bins.head._2
      else {
        val i = pos.last._2
+       System.out.println(i)
        val bi = bins(i)
        val bi1 = bins(i+1)
        val mb =  bi._2 + ((bi1._2-bi._2)/(bi1._1-bi._1)) * (b - bi._1 ) 
