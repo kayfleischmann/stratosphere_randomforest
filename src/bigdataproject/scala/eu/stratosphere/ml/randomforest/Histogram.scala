@@ -27,7 +27,7 @@ case class Histogram(feature : Integer, maxBins : Integer) {
      System.out.println("pi:"+pi)
      System.out.println("pi1:"+pi1)
      
-     val a = pi1._2 - pi._2
+     val a = math.max( pi1._2 - pi._2, 0.00000001 )
      val b = 2*pi._2
      val c = -2*d
      val z = (-b + math.sqrt(b*b - 4*a*c)) / (2*a);
