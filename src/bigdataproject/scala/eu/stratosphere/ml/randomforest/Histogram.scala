@@ -8,7 +8,6 @@ case class Histogram(feature : Integer, maxBins : Integer) {
  
   //TODO: Bug fix
   def uniform( Bnew : Integer ) = {
-   System.out.println(bins.toString);
    val u = scala.collection.mutable.Buffer[Double]()
    if( Bnew > bins.length )
      u.toSet
@@ -17,17 +16,18 @@ case class Histogram(feature : Integer, maxBins : Integer) {
      val binSum = bins.map(_._2).sum
      for(j <- 1 until Bnew){   
       val s= (j.toDouble/Bnew) * binSum.toDouble
-      val i = sums.filter( x=>(x<s) ).length-1
+      var i = sums.filter( x=>(x<s) ).length-1
+      if(i<0)i=0 // this is important if the first bucket is very large
       val d = math.abs(s - sums(i))
       val pi = bins(i)
+      
       val pi1 = bins(i+1)
       val a = math.max( pi1._2 - pi._2, 0.00000001 )
-      val b = 2*pi._2
+      val b = 2*pi._2      
       val c = -2*d
-       val z = (-b + math.sqrt(b*b - 4*a*c)) / (2*a);
+      val z = (-b + math.sqrt(b*b - 4*a*c)) / (2*a);
       val uj = pi._1+(pi1._1 - pi._1)*z
       u += uj
-      
      }
      u.toSet
     }
@@ -40,7 +40,7 @@ case class Histogram(feature : Integer, maxBins : Integer) {
    else if(b<minBinValue)
      0
    else if(b==minBinValue)
-     1
+     bins.head._2
    else {
      sum_of_bin(b)
    }
@@ -57,17 +57,15 @@ case class Histogram(feature : Integer, maxBins : Integer) {
        val mb =  bi._2 + ((bi1._2-bi._2)/(bi1._1-bi._1)) * (b - bi._1 ) 
        var s = ((bi._2+mb) / 2) * ((b - bi._1 )/(bi1._1-bi._1))
        for (j <- 0 until i)  s += bins(j)._2
-       s = s + bins(i)._2.toDouble / 2
+       s = s + bins(i)._2.toDouble / 2.0
        s
      }
   }  
    
   def merge(h:Histogram) = {
     val h2 = new Histogram(feature,maxBins)
-    h2.bins = bins.clone
-    h.bins.foreach( b => 
-      h2.update(b._1, b._2 )
-    )
+    for(i<-0 until bins.length) h2.update(bins(i)._1, bins(i)._2)
+    for(i<-0 until h.bins.length) h2.update(h.bins(i)._1, h.bins(i)._2)
     h2
   }  
   def update ( p : Double ) : this.type = {
