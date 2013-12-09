@@ -42,8 +42,15 @@ object testRandomForestOnStratosphere {
 	
 	 System.out.println( h.uniform(6)  ) 
 	 
-	 /*
+	 val strhistogram ="728;10;0.0 641"
+	
+	
+	 val hh = Histogram.fromString(strhistogram)
 	 
+	 System.out.println( hh.uniform(10) )
+	 //System.out.println(hh.toString)
+
+	 /*
 	 val hh =Histogram.fromString("10;0.0011463046757164404 260,0.08466566113624936 39,0.1627450980392157 2,0.24248366013071898 30,0.3640866873065016 38,0.5039848197343454 31,0.6289592760180995 13,0.7274509803921568 26,0.8631127450980391 32,0.988489666136725 185")
 	 System.out.println(hh.getBins.length)
 	 System.out.println( hh.uniform(10) )

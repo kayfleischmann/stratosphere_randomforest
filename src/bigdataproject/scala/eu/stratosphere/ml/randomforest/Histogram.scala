@@ -8,34 +8,29 @@ case class Histogram(feature : Integer, maxBins : Integer) {
  
   //TODO: Bug fix
   def uniform( Bnew : Integer ) = {
-    System.out.println("UNIFORM");
-    val u = scala.collection.mutable.Buffer[Double]()
-    val sums = bins.map(x=>sum(x._1))
-    val binSum = bins.map(_._2).sum
-    System.out.println("sum:"+binSum)
-    System.out.println(sums)
-    System.out.println("for")
-    for(j <- 1 until Bnew){   
-     val s= (j.toDouble/Bnew) * binSum.toDouble
-     val i = sums.filter( x=>(x<s) ).length-1
-     val d = math.abs(s - sums(i))
-
-     val pi = bins(i)
-     val pi1 = bins(i+1)
-     
-     System.out.println("d:"+d)
-     System.out.println("pi:"+pi)
-     System.out.println("pi1:"+pi1)
-     
-     val a = math.max( pi1._2 - pi._2, 0.00000001 )
-     val b = 2*pi._2
-     val c = -2*d
-     val z = (-b + math.sqrt(b*b - 4*a*c)) / (2*a);
-     val uj = pi._1+(pi1._1 - pi._1)*z
-     u += uj
-     
+   System.out.println(bins.toString);
+   val u = scala.collection.mutable.Buffer[Double]()
+   if( Bnew > bins.length )
+     u.toSet
+    else{
+     val sums = bins.map(x=>sum(x._1))
+     val binSum = bins.map(_._2).sum
+     for(j <- 1 until Bnew){   
+      val s= (j.toDouble/Bnew) * binSum.toDouble
+      val i = sums.filter( x=>(x<s) ).length-1
+      val d = math.abs(s - sums(i))
+      val pi = bins(i)
+      val pi1 = bins(i+1)
+      val a = math.max( pi1._2 - pi._2, 0.00000001 )
+      val b = 2*pi._2
+      val c = -2*d
+       val z = (-b + math.sqrt(b*b - 4*a*c)) / (2*a);
+      val uj = pi._1+(pi1._1 - pi._1)*z
+      u += uj
+      
+     }
+     u.toSet
     }
-    u.toSet
   }
   
   def sum(b:Double) = {
@@ -57,7 +52,6 @@ case class Histogram(feature : Integer, maxBins : Integer) {
       bins.head._2
      else {
        val i = pos.last._2
-       System.out.println(i)
        val bi = bins(i)
        val bi1 = bins(i+1)
        val mb =  bi._2 + ((bi1._2-bi._2)/(bi1._1-bi._1)) * (b - bi._1 ) 

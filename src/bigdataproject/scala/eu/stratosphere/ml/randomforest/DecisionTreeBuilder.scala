@@ -46,8 +46,9 @@ class DecisionTreeBuilder( var nodeQueue : List[TreeNode]) extends PlanAssembler
 		    					  	  	(	node.treeId+"_"+node.nodeId,
 		    					  			node.baggingTable.count( _ == index), 
 		    					  			feature, // feature attribute index
-		    					  			features(feature), // feature value
-		    					  			label )
+		    					  			features(feature).toDouble, // feature value
+		    					  			label,
+		    					  			index)
 		    					  			) )	
     					}
     
@@ -60,16 +61,38 @@ class DecisionTreeBuilder( var nodeQueue : List[TreeNode]) extends PlanAssembler
       			val treeId = keyValues.split("_")(0).toInt
       			val nodeId = keyValues.split("_")(1).toInt        
 
+      			// group by feature results in a List[(feature,List[inputTuple])]
       			val groupedFeatureTuples = buffered.toArray.groupBy( _._3 )
-      			val featureHistograms = groupedFeatureTuples.map( x => x._2.map ( t => new Histogram(t._3,buckets).update( t._4.toDouble ) ) )
+ 
+      			val featureHistograms = groupedFeatureTuples.map( x => x._2.map ( t => new Histogram(t._3,buckets).update( (t._4.toDouble*255).toInt ) ) )
       			
-      			// generate class histogram
+      			// merged histogram h(i) (merge all label histpgrams to one total hostogram)
       			val mergedHistogram = featureHistograms
       				.map( x => x.reduceLeft( (h1,h2) => h1.merge(h2) ) )
       	
+      			// compute split candidate for each feature
+      			// List[Histogram(feature)] => [(feature,List[a])]
+      			val splitCandidates = mergedHistogram.map( x => if( x.getBins.length == buckets ) x.uniform(buckets) else scala.collection.mutable.Buffer[Double]().toSet )
+
+      			val histograms =  mergedHistogram.map( x => x.toString ).mkString("\n")
+      			
+      			// compute the best split
+      			val bestSplit = (3 /*feature*/,  22 /*a*/)
+      			
+      			// decide if there is a stopping condition
+      			
+      			// if yes, assign label to the node
+      			// group by label
+      			val labelDistribution = buffered.toArray.groupBy( _._5 ).maxBy(x=>x._2.length )
+      			
+      			// cerate new bagging tables for the next level
+      			val leftNode = buffered.filter( x => x._3 == bestSplit._1 && x._4 <= bestSplit._2).map( x => x._6)
+      			val rightNode = buffered.filter( x => x._3 == bestSplit._1 && x._4 > bestSplit._2).map( x => x._6)
+      		
+      			
       			// now do the splitting
-      			val leftChild = ""
-      			val rightChild = ""
+      			val leftChild = "left childs" 
+      			val rightChild = "right childs"
       			  
   				// prob that sample reaches v
   				val tau = 1
@@ -81,7 +104,7 @@ class DecisionTreeBuilder( var nodeQueue : List[TreeNode]) extends PlanAssembler
   				val qRj = 1
 
   				// emit new node for nodeQueue
-      			(treeId, nodeId, leftChild, rightChild )
+      			(treeId, nodeId, histograms )
       	}
       
       
