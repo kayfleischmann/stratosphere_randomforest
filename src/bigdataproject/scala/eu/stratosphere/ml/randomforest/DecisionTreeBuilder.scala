@@ -61,8 +61,10 @@ class DecisionTreeBuilder( var nodeQueue : List[TreeNode]) extends PlanAssembler
       			val treeId = keyValues.split("_")(0).toInt
       			val nodeId = keyValues.split("_")(1).toInt        
 
+      			val tupleList = buffered.toArray
+      			
       			// group by feature results in a List[(feature,List[inputTuple])]
-      			val groupedFeatureTuples = buffered.toArray.groupBy( _._3 )
+      			val groupedFeatureTuples = tupleList.groupBy( _._3 )
  
       			val featureHistograms = groupedFeatureTuples.map( x => x._2.map ( t => new Histogram(t._3,buckets).update( t._4.toDouble ) ) )
       			
@@ -87,8 +89,7 @@ class DecisionTreeBuilder( var nodeQueue : List[TreeNode]) extends PlanAssembler
   				val qRj = 1
   				
       			
-      			
-      			val label = 1 // values.toArray.groupBy( _._5 ).maxBy(x=>x._2.length )
+      			val label = tupleList.groupBy( _._5 ).maxBy(x=>x._2.length )
       			// decide if there is a stopping condition
       			
       			// if yes, assign label to the node.
