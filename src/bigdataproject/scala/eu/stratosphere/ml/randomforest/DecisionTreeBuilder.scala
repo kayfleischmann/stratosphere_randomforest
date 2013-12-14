@@ -89,7 +89,7 @@ class DecisionTreeBuilder( var nodeQueue : List[TreeNode]) extends PlanAssembler
   				val qRj = 1
   				
       			
-      			val label = tupleList.groupBy( _._5 ).maxBy(x=>x._2.length )
+      			val label =  tupleList.groupBy( _._5 ).maxBy(x=>x._2.length )._1
       			// decide if there is a stopping condition
       			
       			// if yes, assign label to the node.
