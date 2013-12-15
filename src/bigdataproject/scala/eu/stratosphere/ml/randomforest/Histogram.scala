@@ -9,7 +9,8 @@ case class Histogram(feature : Integer, maxBins : Integer) {
   def getMax = maxBinValue
   def getMin = minBinValue
   def getNormalSum = bins.map(_._2).sum
-  
+  def getNormalSum( x : Double) = bins.filter(d=>d._1 > x).map(_._2).sum
+
   //TODO: Bug fix
   def uniform( Bnew : Integer ) = {
    val u = scala.collection.mutable.Buffer[Double]()

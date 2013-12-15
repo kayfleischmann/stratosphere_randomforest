@@ -62,6 +62,7 @@ class DecisionTreeBuilder( var nodeQueue : List[TreeNode]) extends PlanAssembler
       			val nodeId = keyValues.split("_")(1).toInt        
 
       			val tupleList = buffered.toArray
+      			val total_samples = tupleList.length
       			
       			// group by feature results in a List[(feature,List[inputTuple])]
       			val groupedFeatureTuples = tupleList.groupBy( _._3 )
@@ -74,30 +75,33 @@ class DecisionTreeBuilder( var nodeQueue : List[TreeNode]) extends PlanAssembler
       			
       			// compute split candidate for each feature
       			// List[Histogram(feature)] => [(feature,List[a])]
-      			val splitCandidates = mergedHistogram.map( x => Histogram.fromString(x.toString).uniform(buckets) )
+      			val splitCandidates = mergedHistogram.map( x => (x.feature,x,x.uniform(buckets)) )
       			
-      			// compute the best split
-      			val bestSplit = (3 /*feature*/,  22 /*a*/)
-
-  				// prob that sample reaches v
-  				val tau = 1
-  				
-  				// the probabilities of label j in the left
-  				val qLj = 1
-
-  				// the probabilities of label j in the Right
-  				val qRj = 1
-  				
+      			//val splitting_qualities = splitCandidates.map( x => split_quality(x)  )
+      			val qj = groupedFeatureTuples.map( f => (f._1, f._2.length.toDouble / total_samples ) )
       			
+
+      			// compute all possible split qualities to make the best decision
+      			val splitQualities = splitCandidates.flatMap( featureCandidates =>
+      			  							featureCandidates._3.map( candidate => split_quality( featureCandidates._1, candidate, featureCandidates._2) ) )
+      			  					
+      			  					
+      			// compute the best split, find max by quality
+      			// OUTPUT
+      			// (feature,candidate,quality)
+      			val bestSplit = splitQualities.maxBy( x=> x._3  )
+      			  				
+      			// compute the label by max count (uniform distribution)
       			val label =  tupleList.groupBy( _._5 ).maxBy(x=>x._2.length )._1
+      			
       			// decide if there is a stopping condition
       			
       			// if yes, assign label to the node.
       			// group by label
       			
-      			// cerate new bagging tables for the next level
-      			val leftNode = buffered.filter( x => x._3 == bestSplit._1 && x._4 <= bestSplit._2).map( x => x._6)
-      			val rightNode = buffered.filter( x => x._3 == bestSplit._1 && x._4 > bestSplit._2).map( x => x._6)
+      			// create new bagging tables for the next level
+      			val leftNode = tupleList.filter( x => x._3 == bestSplit._1 && x._4 <= bestSplit._2).map( x => x._6)
+      			val rightNode = tupleList.filter( x => x._3 == bestSplit._1 && x._4 > bestSplit._2).map( x => x._6)
       		
       			// now do the splitting
       			val leftChild =  leftNode.mkString(" ")
@@ -113,6 +117,32 @@ class DecisionTreeBuilder( var nodeQueue : List[TreeNode]) extends PlanAssembler
     new ScalaPlan(Seq(sink))
   }
 
-  def isStoppingCriterion(){
+  def isStoppingCriterion (groupedFeatureTuples : List[Int] ) ={
+1 }
+  
+  def impurity_gini( q:List[Double] )={Double
+    1-q.map( x=>x*x).sum
   }
+  
+  def entropy ( q:List[Double] )={
+    - q.map( x=>x*Math.log(x)).sum
+  }
+  
+  def quality_function(tau:Double, q : List[Double], qL : List[Double], qR : List[Double]) ={
+    impurity_gini(q) -tau*impurity_gini(qL)-(1-tau)*impurity_gini(qR);
+  }
+
+  // INPUT
+  // Integer => feature
+  // Double => split candidate
+  // Histogram histogram distribution
+  // OUTPUT
+  // (feature,candidate,quality)
+  
+  def split_quality( feature : Integer,  candidate : Double, histogram : Histogram ) = {  
+	val quality=0
+	
+    (feature,candidate,quality)
+  }
+  
 }
