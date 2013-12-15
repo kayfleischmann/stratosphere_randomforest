@@ -6,11 +6,15 @@ case class Histogram(feature : Integer, maxBins : Integer) {
   var minBinValue = Double.PositiveInfinity
   def getBins = bins
  
+  def getMax = maxBinValue
+  def getMin = minBinValue
+  def getNormalSum = bins.map(_._2).sum
+  
   //TODO: Bug fix
   def uniform( Bnew : Integer ) = {
    val u = scala.collection.mutable.Buffer[Double]()
    if( Bnew > bins.length )
-     u.toSet
+     u.toList
     else{
      val sums = bins.map(x=>sum(x._1))
      val binSum = bins.map(_._2).sum
@@ -29,7 +33,7 @@ case class Histogram(feature : Integer, maxBins : Integer) {
       val uj = pi._1+(pi1._1 - pi._1)*z
       u += uj
      }
-     u.toSet
+     u.toList
     }
   }
   
@@ -60,7 +64,7 @@ case class Histogram(feature : Integer, maxBins : Integer) {
        s = s + bins(i)._2.toDouble / 2.0
        s
      }
-  }  
+  }
    
   def merge(h:Histogram) = {
     val h2 = new Histogram(feature,maxBins)
@@ -80,8 +84,9 @@ case class Histogram(feature : Integer, maxBins : Integer) {
      bins +=( (p, c) )
      sort
      compress_one
-     maxBinValue=math.max(maxBinValue, p)
-     minBinValue=math.min(minBinValue, p)
+     maxBinValue=bins.map(_._1).max
+     minBinValue=bins.map(_._1).min
+     //math.min(minBinValue, p)
     }
     this
   }
@@ -100,6 +105,26 @@ case class Histogram(feature : Integer, maxBins : Integer) {
   }
   override def toString = {
     feature+";"+maxBins+";"+bins.map(x=>""+x._1+" "+x._2).mkString(",")
+  }
+  
+  def print = {
+    System.out.println(toString);
+    val normalsum = getNormalSum
+	System.out.println("Histogram "+feature+", "+maxBins);
+	System.out.println("max: "+getMax)
+	System.out.println("min: "+getMin)
+	System.out.println("total: "+normalsum);
+	
+	var last=Double.NegativeInfinity
+    for(b <- bins ){
+     val num=(b._2.toDouble/normalsum)*100;	
+	 System.out.print("["+("%.4f".format(last)).substring(0,6)+","+("%.4f".format(b._1))+"]     ");
+	 for( i <- Range(0,num.toInt) ){
+	  System.out.print("|");
+	 }//
+	 last=b._1;
+	 System.out.println("    ("+b._2+") \n");
+    }//for
   }
 }
 object Histogram {
