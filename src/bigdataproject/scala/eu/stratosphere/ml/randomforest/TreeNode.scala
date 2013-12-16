@@ -1,16 +1,19 @@
 package bigdataproject.scala.eu.stratosphere.ml.randomforest
 
 case class TreeNode ( 
-	treeId : Int, 
-	nodeId : Int, 
-	
+	treeId : Int,
+	nodeId : Int,
 	// bagging table
 	baggingTable : Array[Int],
-	// list of features left for random feature-selection (m)
-	features : Set[Int],
-	candidateFeatures : Array[Int],
+	// list of features total available for this level
+	val features : Array[Int],
+	// list of features left for random feature-selection (m) - subset of "features"
 	featureSpace : Array[Int],
-	splitFeature : Int,
-	
-	isLeaf : Boolean ){
+	// -1 if not set
+	splitFeatureIndex : Int,
+	// -1 if not set
+	splitFeatureValue : Double,
+	// -1 if not set
+	label : Int
+	){
 }

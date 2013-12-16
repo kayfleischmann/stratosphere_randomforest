@@ -9,7 +9,7 @@ import eu.stratosphere.pact.client.LocalExecutor
 
 import util.Random
   
-class DecisionTreeBuilder( var nodeQueue : List[TreeNode]) extends PlanAssembler with PlanAssemblerDescription with Serializable {
+class DecisionTreeBuilder(var nodeQueue : List[TreeNode], var minNrOfItems : Int) extends PlanAssembler with PlanAssemblerDescription with Serializable {
 
   
   override def getDescription() = {
@@ -34,91 +34,97 @@ class DecisionTreeBuilder( var nodeQueue : List[TreeNode]) extends PlanAssembler
 	  val features = values.tail.tail.mkString(" ")
 	  	(index,label,features.split(" "))
     }
-    
+
     // for each sample and each tree and node, create an histogram tuple 
     val treenode_samples = samples  
-    				.flatMap { case (index,label, features ) => 
-    					nodeQueue
-    							.filter { node => node.baggingTable.contains(index) }
-		    					.flatMap( node => 
-		    					    // filter feature space for this node, and ignore the other features
-		    					   	node.featureSpace.map( feature =>
-		    					  	  	(	node.treeId+"_"+node.nodeId,
-		    					  			node.baggingTable.count( _ == index), 
-		    					  			feature, // feature attribute index
-		    					  			features(feature).toDouble, // feature value
-		    					  			label,
-		    					  			index)
-		    					  			) )	
-    					}
+		.flatMap { case (index,label, features ) => 
+			nodeQueue
+				.filter { node => node.baggingTable.contains(index) }
+				.flatMap( node => 
+					// filter feature space for this node, and ignore the other features
+					node.featureSpace.map( feature =>
+						(node.treeId+"_"+node.nodeId,
+			  			node.baggingTable.count( _ == index), 
+			  			feature, // feature attribute index
+			  			features(feature).toDouble, // feature value
+			  			label,
+			  			index)
+			  			)
+			  		)
+			}
     
     val newQueueNodesHistograms = treenode_samples
       .groupBy { _._1 }
       .reduceGroup { values =>
-        		val buckets = 10
-      			val buffered = values.buffered
-      			val keyValues = buffered.head._1
-      			val treeId = keyValues.split("_")(0).toInt
-      			val nodeId = keyValues.split("_")(1).toInt        
+    		val buckets = 10
+  			val buffered = values.buffered
+  			val keyValues = buffered.head._1
+  			val treeId = keyValues.split("_")(0).toInt
+  			val nodeId = keyValues.split("_")(1).toInt        
 
-      			val tupleList = buffered.toList
-      			val totalSamples = tupleList.length
-      			
-      			// group by feature results in a List[(feature,List[inputTuple])]
-      			val groupedFeatureTuples = tupleList.groupBy( _._3 ).toList
-
+      		// account for EACH occurance in bagging table
+  			val tupleList = buffered.flatMap(x => (0 until x._2).map( _ => x )).toList
+  			val totalSamples = tupleList.length
+  			
+      		// group by feature results in a List[(feature,List[inputTuple])]
+      		val groupedFeatureTuples = tupleList.groupBy( _._3 ).toList
  
-      			val featureHistograms = groupedFeatureTuples.map( x => x._2.map ( t => new Histogram(t._3,buckets).update( t._4.toDouble ) ) )
+  			val featureHistograms = groupedFeatureTuples map {
+    		  	case (_, featureHistogram) => featureHistogram map {
+					case (_, _, featureIndex, featureValue, _, _) => new Histogram(featureIndex, buckets).update(featureValue.toDouble)
+  					}
+    			}
       			
-      			// merged histogram h(i) (merge all label histpgrams to one total hostogram)
-      			val mergedHistogram = featureHistograms
-      				.map( x => x.reduceLeft( (h1,h2) => h1.merge(h2) ) )
-      			
-      			// compute split candidate for each feature
-      			// List[Histogram(feature)] => [(feature,List[Tuples])]
-      			// filter Histogram uniform results which are not valid
-      			val splitCandidates = mergedHistogram.map( x => (x.feature,x,x.uniform(buckets)) ).filter( x => x._3.length > 0 )
-      			
-      			// group by label, than compute the probability for each label
-      			val qj = tupleList.groupBy( _._5 ).map( f => (f._1, f._2.length.toDouble / totalSamples ) ).toList
-      			
-      			// compute all possible split qualities to make the best decision
-      			val splitQualities = splitCandidates.flatMap( featureCandidates =>
-      			  								featureCandidates._3.map( candidate => 
-      			  							  		split_quality( qj, groupedFeatureTuples, featureCandidates._1, candidate, featureCandidates._2, totalSamples) ) )
-      			  					
-      			  					
-      			// compute the best split, find max by quality
-      			// OUTPUT
-      			// (feature,candidate,quality)
-      			val bestSplit = splitQualities.maxBy( x=> x._3 )
-      			
-      			  				
-      			// compute the label by max count (uniform distribution)
-      			val label =  tupleList.groupBy( _._5 ).maxBy(x=>x._2.length )._1
-      			
-      			// decide if there is a stopping condition
-      			
-      			// if yes, assign label to the node.
-      			// group by label
-      			
-      			// create new bagging tables for the next level
-      			val leftNode = tupleList.filter( x => x._3 == bestSplit._1 && x._4 <= bestSplit._2).map( x => x._6)
-      			val rightNode = tupleList.filter( x => x._3 == bestSplit._1 && x._4 > bestSplit._2).map( x => x._6)
+      			// merged histogram h(i) (merge all label histograms to one total histogram)
+  			val mergedHistogram = featureHistograms.map(x => x.reduceLeft((h1, h2) => h1.merge(h2)))
+  			
+  			// compute split candidate for each feature
+  			// List[Histogram(feature)] => [(feature,List[Tuples])]
+  			// filter Histogram uniform results which are not valid
+  			val splitCandidates = mergedHistogram.map(x => (x.feature, x.uniform(buckets))).filter(_._2.length > 0)
+  			
+  			// group by label, then compute the probability for each label
+  			val qj = tupleList.groupBy( _._5 ).map {
+  				case (label, dataItemsForLabel) => (label, dataItemsForLabel.length.toDouble / totalSamples)
+  				}.toList
+  			
+  			// compute all possible split qualities to make the best decision
+  			val splitQualities = splitCandidates.flatMap { case (featureIndex, featureBuckets) =>
+  				featureBuckets.map(bucket => split_quality( qj, groupedFeatureTuples, featureIndex, bucket, totalSamples))
+  				}      			  					
+  			  					
+  			// compute the best split, find max by quality
+  			// OUTPUT
+  			// (feature,candidate,quality)
+  			val bestSplit = splitQualities.maxBy(_._3)
+  			var label = -1
+  			  				
+  			// create new bagging tables for the next level
+  			val leftNode = tupleList.filter(x => x._3 == bestSplit._1 && x._4 <= bestSplit._2).map(x => x._6)
+  			val rightNode = tupleList.filter(x => x._3 == bestSplit._1 && x._4 > bestSplit._2).map(x => x._6)
+  			
+  			// decide if there is a stopping condition
+  			val stoppingCondition = leftNode.isEmpty || rightNode.isEmpty || leftNode.length < minNrOfItems || rightNode.length < minNrOfItems;
+  			
+  			// if yes, 
+  			if (stoppingCondition)
+  			{
+  				// compute the label by max count (uniform distribution)
+  				label = tupleList.groupBy(_._5).maxBy(x => x._2.length)._1
+  			}
 
-      			System.out.println(bestSplit)
-      			System.out.println("leftnode: "+leftNode.length)
-      			System.out.println("rightnode: "+rightNode.length)
-      			
-      			// now do the splitting
-      			val leftChild =  leftNode.mkString(" ")
-      			val rightChild = rightNode.mkString(" ")
+  			System.out.println(bestSplit)
+  			System.out.println("leftnode: "+leftNode.length)
+  			System.out.println("rightnode: "+rightNode.length)
+  			
+  			// now do the splitting
+  			val leftChild = leftNode.mkString(" ")
+  			val rightChild = rightNode.mkString(" ")
 
-  				// emit new node for nodeQueue
-  				(treeId, nodeId, bestSplit._1, bestSplit._2, label, leftChild, rightChild )
+			// emit new node for nodeQueue
+			(treeId, nodeId, bestSplit._1, bestSplit._2, label, leftChild, rightChild )
       	}
-      
-      
+
     val sink = newQueueNodesHistograms.write( outputPath, CsvOutputFormat("\n",","))
 
     new ScalaPlan(Seq(sink))
@@ -152,7 +158,6 @@ class DecisionTreeBuilder( var nodeQueue : List[TreeNode]) extends PlanAssembler
 		  				groupedFeatureTuples : List[(Int,List[(String,Int,Int,Double,Int,Int)])], 
 		  				feature : Int,  
 		  				candidate : Double, 
-		  				histogram : Histogram,
 		  				totalSamples : Int) = {  
     
 	// compute probability distribution for each child (Left,Right) and the current candidate with the specific label
