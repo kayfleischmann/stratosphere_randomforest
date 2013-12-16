@@ -92,18 +92,18 @@ class RandomForestBuilder {
 		    {
 		    	fw.write(line + newLine)
 		    	val lineData = line.split(",")
-		    	val treeId = lineData(0).toInt
-		    	val nodeId = lineData(1).toInt
-		    	val featureIndex = lineData(2).toInt
-		    	val featureValue = lineData(3).toDouble
 		    	val label = lineData(4).toInt
-		    	val leftBaggingTable = lineData(5).split(" ").map(_.toInt).toArray
-		    	val rightBaggingTable = lineData(5).split(" ").map(_.toInt).toArray
-		    	val parentNode = previousNodeQueue.find(x => x.treeId == treeId && x.nodeId == nodeId).get
 		    	
 		    	// if not a leaf node, add new nodes to split
 		    	if (label == -1)
 		    	{
+			    	val treeId = lineData(0).toInt
+			    	val nodeId = lineData(1).toInt
+			    	val featureIndex = lineData(2).toInt
+			    	val featureValue = lineData(3).toDouble
+		    		val parentNode = previousNodeQueue.find(x => x.treeId == treeId && x.nodeId == nodeId).get
+			    	val leftBaggingTable = lineData(5).split(" ").map(_.toInt).toArray
+			    	val rightBaggingTable = lineData(6).split(" ").map(_.toInt).toArray
 		    		val features = parentNode.features.filter(x => x != featureIndex)
 			    	nodesQueue += new TreeNode(treeId, ((nodeId + 1) * 2) - 1, leftBaggingTable, features, generateFeatureSubspace(featureSubspaceCount, features.toBuffer), -1, -1, -1 )
 			    	nodesQueue += new TreeNode(treeId, ((nodeId + 1) * 2), rightBaggingTable, features, generateFeatureSubspace(featureSubspaceCount, features.toBuffer), -1, -1, -1 )
