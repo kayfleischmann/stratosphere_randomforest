@@ -5,7 +5,16 @@ import bigdataproject.scala.eu.stratosphere.ml.randomforest.Histogram
 object testHistogram {
  
   def main(args: Array[String]) { 
-    testHistogram_loaddata
+    testHistogram_paper
+  }
+  
+  def testHistogram_vlaues =  {
+	 val strhistogram ="346;10;0.001636151149201403 302,0.09193899782135079 18,0.16823529411764707 10,0.28590102707749765 21,0.40620915032679733 12,0.5273725490196078 25,0.6425180598555209 19,0.7720965309200606 26,0.8930856553147575 38,0.991001880204138 146"
+
+	 System.out.println(strhistogram)
+	 val hh = Histogram.fromString(strhistogram)
+
+	 System.out.println( hh.uniform(10) );
   }
   
   def testHistogram_loaddata = {
@@ -24,34 +33,30 @@ object testHistogram {
   
   def testHistogram_paper = {
 	 val h = new Histogram(2,5)
-	 h.update(23)
-	 h.update(19)
-	 h.update(10)
-	 h.update(16)
-	 h.update(36)
+	 h.update(23.0/100)
+	 h.update(19.0/100)
+	 h.update(10.0/100)
+	 h.update(16.0/100)
+	 h.update(36.0/100)
 	 System.out.println( h.getBins.toString )
-	 h.update(2)
+	 h.update(2.0/100)
 	 System.out.println( h.getBins.toString )
-	 h.update(9)
-	 System.out.println( h.getBins.toString )
-	 
-	 h.update(32)
-	 System.out.println( h.getBins.toString )
-	 h.update(30)
-	 System.out.println( h.getBins.toString )
-	 h.update(45)
-	 System.out.println( h.getBins.toString )
+	 h.update(9.0/100)
 	 System.out.println( h.getBins.toString )
 	 
+	 h.update(32.0/100)
+	 System.out.println( h.getBins.toString )
+	 h.update(30.0/100)
+	 System.out.println( h.getBins.toString )
+	 h.update(45.0/100)
+	 h.update(45.0/100)
+	 h.update(45.0/100)
+	 System.out.println( h.getBins.toString )
+	 System.out.println( h.getBins.toString )
 	 
-	 System.out.println( "sum:"+h.sum(1)  ) 
-	 System.out.println( "sum:"+h.sum(2)  ) 
-	 System.out.println( "sum:"+h.sum(33)  ) 
-	 System.out.println( "sum:"+h.sum(44)  ) 
-	 System.out.println( "sum:"+h.sum(45)  ) 
-
+	 
 	 System.out.println("uniform");
-	 System.out.println( h.uniform(6)  ) 
+	 System.out.println( h.uniform(5)  ) 
   }
   
   def testHistogram_serialization = {

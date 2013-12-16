@@ -9,7 +9,7 @@ import scala.collection.mutable.Buffer
 import java.io.FileWriter
 
 class RandomForestBuilder {
-  def getSampleCount() = 10000
+  def getSampleCount() = 1000
   
   def generateRandomBaggingTable(number : Int)  = {
 	Array.fill(number) { Random.nextInt(number) }
@@ -49,23 +49,23 @@ class RandomForestBuilder {
       
       // randomized
       var featureSubspace = generateFeatureSubspace(featureSubspaceCount, totalFeatureCount)
-      
-      nodesQueue += new TreeNode(treeId, 0, generateRandomBaggingTable(getSampleCount), features, featureSubspace, -1, -1, -1 )
+      val randomSamples = generateRandomBaggingTable(getSampleCount)
+      nodesQueue += new TreeNode(treeId, 0, randomSamples, features, featureSubspace, -1, -1, -1 )
     }//for
     
     // if next level, read from file which node has to be split
     // each line treeId,nodeId, featuresIndicies, baggingTable
           
     // Write test input to temporary directory
-    val inputPath = new File("C:\\Projects\\StratosphereRandomForest\\Prototype1\\normalized.txt").toURI().toString()
+    val inputPath = new File("/home/kay/Dropbox/kay-rep/Uni-Berlin/MA_INF_Sem3_WS13/BigDataAnalytics/datasets/normalized.txt").toURI().toString()
       
     // Output
-    val outputFile = "C:\\Users\\Silver\\AppData\\Local\\Temp\\output"
+    val outputFile = "/home/kay/rf_output"
     val outputNodeQueuePath = new File(outputFile).toURI().toString()
     // read from the file and build the TreeNode List
 
     // Output
-    val outputTreeFile = "C:\\Users\\Silver\\AppData\\Local\\Temp\\outputTree"
+    val outputTreeFile = "/home/kay/rf_output_tree"
     val outputTreePath = new File(outputTreeFile).toURI().toString()
 
     println("Reading input from " + inputPath)

@@ -62,13 +62,18 @@ class DecisionTreeBuilder(var nodeQueue : List[TreeNode], var minNrOfItems : Int
   			val treeId = keyValues.split("_")(0).toInt
   			val nodeId = keyValues.split("_")(1).toInt        
 
+
       		// account for EACH occurance in bagging table
   			val tupleList = buffered.flatMap(x => (0 until x._2).map( _ => x )).toList
-  			val totalSamples = tupleList.length
+  			
   			
       		// group by feature results in a List[(feature,List[inputTuple])]
       		val groupedFeatureTuples = tupleList.groupBy( _._3 ).toList
- 
+  			val totalSamples = groupedFeatureTuples.head._2.length
+
+      		//val groupedLabelTuples = tupleList.groupBy( _._5 ).toList
+
+      		
   			val featureHistograms = groupedFeatureTuples map {
     		  	case (_, featureHistogram) => featureHistogram map {
 					case (_, _, featureIndex, featureValue, _, _) => new Histogram(featureIndex, buckets).update(featureValue.toDouble)
@@ -91,8 +96,10 @@ class DecisionTreeBuilder(var nodeQueue : List[TreeNode], var minNrOfItems : Int
   			// compute all possible split qualities to make the best decision
   			val splitQualities = splitCandidates.flatMap { case (featureIndex, featureBuckets) =>
   				featureBuckets.map(bucket => split_quality( qj, groupedFeatureTuples, featureIndex, bucket, totalSamples))
-  				}      			  					
-  			  					
+  				}  
+  				
+  			System.out.println(impurity_gini(qj.map(_._2)))
+  	
   			// compute the best split, find max by quality
   			// OUTPUT
   			// (feature,candidate,quality)
@@ -154,6 +161,7 @@ class DecisionTreeBuilder(var nodeQueue : List[TreeNode], var minNrOfItems : Int
   // OUTPUT
   // (feature,candidate,quality)
   
+  
   def split_quality( 	qj:List[(Int,Double)], 
 		  				groupedFeatureTuples : List[(Int,List[(String,Int,Int,Double,Int,Int)])], 
 		  				feature : Int,  
@@ -161,11 +169,11 @@ class DecisionTreeBuilder(var nodeQueue : List[TreeNode], var minNrOfItems : Int
 		  				totalSamples : Int) = {  
     
 	// compute probability distribution for each child (Left,Right) and the current candidate with the specific label
-    val qLj = groupedFeatureTuples.map( f => (f._1, f._2.filter( x=> x._4 < candidate ).length.toDouble /totalSamples))
-	val qRj = groupedFeatureTuples.map( f => (f._1, f._2.filter( x=> x._4 >= candidate ).length.toDouble /totalSamples))
-	
+    val qLj = groupedFeatureTuples.filter(x=>x._1 == feature).map({ case (feature, tuples) => (feature, tuples.filter( x=> x._4 <= candidate ).groupBy(_._2).map(x => (x._1, x._2.length.toDouble / totalSamples )) ) })
+    val qRj = groupedFeatureTuples.filter(x=>x._1 == feature).map({ case (feature, tuples) => (feature, tuples.filter( x=> x._4 > candidate ).groupBy(_._2).map(x => (x._1, x._2.length.toDouble / totalSamples )) ) })
+
 	val tau=0.5
-	val quality=quality_function( tau, qj.map(_._2), qLj.map( _._2), qRj.map(_._2) );
+	val quality=quality_function( tau, qj.map(_._2), qLj.flatMap(_._2).map( _._2), qRj.flatMap(_._2).map( _._2) );
 	
     (feature,candidate,quality)
   }
