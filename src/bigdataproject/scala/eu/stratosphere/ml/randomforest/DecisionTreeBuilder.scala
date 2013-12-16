@@ -71,9 +71,6 @@ class DecisionTreeBuilder(var nodeQueue : List[TreeNode], var minNrOfItems : Int
       		val groupedFeatureTuples = tupleList.groupBy( _._3 ).toList
   			val totalSamples = groupedFeatureTuples.head._2.length
 
-      		//val groupedLabelTuples = tupleList.groupBy( _._5 ).toList
-
-      		
   			val featureHistograms = groupedFeatureTuples map {
     		  	case (_, featureHistogram) => featureHistogram map {
 					case (_, _, featureIndex, featureValue, _, _) => new Histogram(featureIndex, buckets).update(featureValue.toDouble)
