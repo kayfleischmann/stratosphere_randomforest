@@ -105,7 +105,8 @@ class RandomForestBuilder {
 			    	val leftBaggingTable = lineData(5).split(" ").map(_.toInt).toArray
 			    	val rightBaggingTable = lineData(6).split(" ").map(_.toInt).toArray
 		    		val features = parentNode.features.filter(x => x != featureIndex)
-			    	nodesQueue += new TreeNode(treeId, ((nodeId + 1) * 2) - 1, leftBaggingTable, features, generateFeatureSubspace(featureSubspaceCount, features.toBuffer), -1, -1, -1 )
+
+		    		nodesQueue += new TreeNode(treeId, ((nodeId + 1) * 2) - 1, leftBaggingTable, features, generateFeatureSubspace(featureSubspaceCount, features.toBuffer), -1, -1, -1 )
 			    	nodesQueue += new TreeNode(treeId, ((nodeId + 1) * 2), rightBaggingTable, features, generateFeatureSubspace(featureSubspaceCount, features.toBuffer), -1, -1, -1 )
 		    	}	    	
 		    }

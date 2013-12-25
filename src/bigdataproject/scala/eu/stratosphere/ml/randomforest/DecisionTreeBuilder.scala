@@ -80,49 +80,70 @@ class DecisionTreeBuilder(var nodeQueue : List[TreeNode], var minNrOfItems : Int
       			// merged histogram h(i) (merge all label histograms to one total histogram)
   			val mergedHistogram = featureHistograms.map(x => x.reduceLeft((h1, h2) => h1.merge(h2)))
   			
+  			System.out.println( mergedHistogram )
+  			
   			// compute split candidate for each feature
   			// List[Histogram(feature)] => [(feature,List[Tuples])]
   			// filter Histogram uniform results which are not valid
   			val splitCandidates = mergedHistogram.map(x => (x.feature, x.uniform(buckets), x)).filter(_._2.length > 0)
   			
+  			
+  			System.out.println(splitCandidates)
+  			
+  			
   			// compute all possible split qualities to make the best decision
-  			val splitQualities = splitCandidates.flatMap { case (featureIndex, featureBuckets, x) =>
-  				featureBuckets.map(bucket => split_quality(groupedFeatureTuples, featureIndex, bucket, x, totalSamples))
-  				}  
+  			val splitQualities = splitCandidates.flatMap { 
+  			  	case (featureIndex, featureBuckets, x) =>
+  					featureBuckets.map( bucket => split_quality(groupedFeatureTuples, featureIndex, bucket, x, totalSamples))
+  				}
   				
-  			//TODO: sometimes split-qualities is empty. we may should see this as a stopping criterion
   			System.out.println(splitQualities)
-  			// compute the best split, find max by quality
-  			// OUTPUT
-  			// (feature,candidate,quality)
-  			val bestSplit = splitQualities.maxBy(_._3)
-  			var label = -1
-  			  				
-  			// create new bagging tables for the next level
-  			val leftNode = tupleList.filter(x => x._3 == bestSplit._1 && x._4 <= bestSplit._2).map(x => x._6)
-  			val rightNode = tupleList.filter(x => x._3 == bestSplit._1 && x._4 > bestSplit._2).map(x => x._6)
   			
-  			// decide if there is a stopping condition
-  			val stoppingCondition = leftNode.isEmpty || rightNode.isEmpty || leftNode.length < minNrOfItems || rightNode.length < minNrOfItems;
-  			
-  			// if yes, 
-  			if (stoppingCondition)
-  			{
-  				// compute the label by max count (uniform distribution)
-  				label = tupleList.groupBy(_._5).maxBy(x => x._2.length)._1
+  			//TODO: sometimes split-qualities is empty. we may should see this as a stopping criterion
+  		
+  			// check the array with split qualities is not empty
+  			if(splitQualities.length > 0){
+	  			// compute the best split, find max by quality
+	  			// OUTPUT
+	  			// (feature,candidate,quality)
+	  			val bestSplit = splitQualities.maxBy(_._3)
+	  			var label = -1
+	  			
+	  			// create new bagging tables for the next level
+	  			val leftNode = tupleList.filter(x => x._3 == bestSplit._1 && x._4 <= bestSplit._2).map(x => x._6)
+	  			val rightNode = tupleList.filter(x => x._3 == bestSplit._1 && x._4 > bestSplit._2).map(x => x._6)
+	  			
+	  			// decide if there is a stopping condition
+	  			val stoppingCondition = leftNode.isEmpty || rightNode.isEmpty || leftNode.length < minNrOfItems || rightNode.length < minNrOfItems;
+	  			
+	  			// if yes, 
+	  			if (stoppingCondition)
+	  			{
+	  				// compute the label by max count (uniform distribution)
+	  				label = tupleList.groupBy(_._5).maxBy(x => x._2.length)._1
+	  			}
+	  			System.out.println(label)
+	  			System.out.println(bestSplit)
+	  			System.out.println("leftnode: "+leftNode.length)
+	  			System.out.println("rightnode: "+rightNode.length)
+	  			
+	  			// now do the splitting
+	  			val leftChild = leftNode.mkString(" ")
+	  			val rightChild = rightNode.mkString(" ")
+	
+				// emit new node for nodeQueue
+				(treeId, nodeId, bestSplit._1, bestSplit._2, label, leftChild, rightChild )
   			}
-
-  			System.out.println(bestSplit)
-  			System.out.println("leftnode: "+leftNode.length)
-  			System.out.println("rightnode: "+rightNode.length)
-  			
-  			// now do the splitting
-  			val leftChild = leftNode.mkString(" ")
-  			val rightChild = rightNode.mkString(" ")
-
-			// emit new node for nodeQueue
-			(treeId, nodeId, bestSplit._1, bestSplit._2, label, leftChild, rightChild )
-      	}
+  			else {
+  				// compute the label by max count (uniform distribution)
+	  			var label = tupleList.groupBy(_._5).maxBy(x => x._2.length)._1
+	  			
+	  			System.out.println(label)
+				
+	  			// emit the final tree node
+				(treeId, nodeId, -1 /* feature*/, 0.0 /*split*/, label, "", "" )
+  			}
+       	}
 
     val sink = newQueueNodesHistograms.write( outputPath, CsvOutputFormat("\n",","))
 
