@@ -36,7 +36,7 @@ class RandomForestBuilder {
 	arr;
   }
   
-  def build = {
+  def build(inputFile : String, outputFile : String, outputTreeFile : String) = {
     val numTrees = 10
     var nodesQueue = Buffer[TreeNode]()
     val totalFeatureCount = 784 //TODO: find the amount of number of feature automatically
@@ -57,15 +57,13 @@ class RandomForestBuilder {
     // each line treeId,nodeId, featuresIndicies, baggingTable
           
     // Write test input to temporary directory
-    val inputPath = new File("/home/kay/Dropbox/kay-rep/Uni-Berlin/MA_INF_Sem3_WS13/BigDataAnalytics/datasets/normalized.txt").toURI().toString()
+    val inputPath = new File(inputFile).toURI().toString()
       
     // Output
-    val outputFile = "/home/kay/rf_output"
     val outputNodeQueuePath = new File(outputFile).toURI().toString()
     // read from the file and build the TreeNode List
 
     // Output
-    val outputTreeFile = "/home/kay/rf_output_tree"
     val outputTreePath = new File(outputTreeFile).toURI().toString()
 
     println("Reading input from " + inputPath)
