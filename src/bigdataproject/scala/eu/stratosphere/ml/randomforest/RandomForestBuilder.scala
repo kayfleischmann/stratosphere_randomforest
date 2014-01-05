@@ -7,9 +7,26 @@ import java.io.File
 import scala.io.Source
 import scala.collection.mutable.Buffer
 import java.io.FileWriter
+import java.io.BufferedInputStream
+import java.io.FileInputStream
 
 class RandomForestBuilder {
-  def getSampleCount() = 1000
+  def getSampleCount(filename : String) : Int = {
+	val src = io.Source.fromFile(filename)
+	try {
+		src.getLines.size.toInt
+	} finally {
+		src.close()
+	}
+  }
+  def getFeatureCount(filename : String) : Int = {
+	val src = io.Source.fromFile(filename)
+	try {
+		src.getLines.find(_ => true).orNull.split(" ").tail.tail.size
+	} finally {
+		src.close()
+	}
+  }
   
   def generateRandomBaggingTable(number : Int)  = {
 	Array.fill(number) { Random.nextInt(number) }
@@ -36,25 +53,23 @@ class RandomForestBuilder {
 	arr;
   }
   
+  def eval(inputFile : String, treeFile : String, outputFile : String) = {
+    val inputPath = new File(inputFile).toURI().toString()
+    val treePath = new File(treeFile).toURI().toString()
+    val outputPath = new File(outputFile).toURI().toString()
+    
+    val ex = new LocalExecutor()
+    ex.start()
+	val plan = new DecisionTreeEvaluator().getPlan(inputPath, treePath, outputPath)
+    val runtime = ex.executePlan(plan)
+    System.exit(0)
+  }
+  
   def build(inputFile : String, outputFile : String, outputTreeFile : String) = {
     val numTrees = 10
     var nodesQueue = Buffer[TreeNode]()
-    val totalFeatureCount = 784 //TODO: find the amount of number of feature automatically
+    val totalFeatureCount = getFeatureCount(inputFile)
     var featureSubspaceCount = Math.round(Math.log(totalFeatureCount).toFloat + 1);
-
-    // add node to build for each tree
-    for (treeId <- 0 until numTrees ){
-      // TODO: the features left is the whole set minus still used best-splits
-      var features = (0 until totalFeatureCount).toArray
-      
-      // randomized
-      var featureSubspace = generateFeatureSubspace(featureSubspaceCount, totalFeatureCount)
-      val randomSamples = generateRandomBaggingTable(getSampleCount)
-      nodesQueue += new TreeNode(treeId, 0, randomSamples, features, featureSubspace, -1, -1, -1 )
-    }//for
-    
-    // if next level, read from file which node has to be split
-    // each line treeId,nodeId, featuresIndicies, baggingTable
           
     // Write test input to temporary directory
     val inputPath = new File(inputFile).toURI().toString()
@@ -65,58 +80,80 @@ class RandomForestBuilder {
 
     // Output
     val outputTreePath = new File(outputTreeFile).toURI().toString()
+    
+    // add node to build for each tree
+    val sampleCount = getSampleCount(inputFile)
+    for (treeId <- 0 until numTrees ){
+      // TODO: the features left is the whole set minus still used best-splits
+      var features = (0 until totalFeatureCount).toArray
+      
+      // randomized
+      var featureSubspace = generateFeatureSubspace(featureSubspaceCount, totalFeatureCount)
+      val randomSamples = generateRandomBaggingTable(sampleCount)
+      nodesQueue += new TreeNode(treeId, 0, randomSamples, features, featureSubspace, -1, -1, -1 )
+    }//for
+    
+    // if next level, read from file which node has to be split
+    // each line treeId,nodeId, featuresIndicies, baggingTable
 
     println("Reading input from " + inputPath)
     println("Writing node-queue output to " + outputNodeQueuePath)
     println("Writing trees output to " + outputTreePath)
 
-    // generate plan with a distributed nodesQueue 
-    
+    // generate plan with a distributed nodesQueue
     val ex = new LocalExecutor()
     ex.start()
     
+    var randomForestTrees : Array[String] = Array.fill(numTrees)("")
+    
+    do {
+    	val plan = new DecisionTreeBuilder(nodesQueue.toList, 70).getPlan(inputPath, outputNodeQueuePath, outputTreePath, numTrees.toString )
+	    val runtime = ex.executePlan(plan)
+	    println("runtime: " + runtime)
+	    
+	    val previousNodeQueue = nodesQueue
+	    nodesQueue = Buffer[TreeNode]()
+	    for(line <- Source.fromFile(outputFile).getLines())
+	    {
+	    	val lineData = line.split(",")
+		    val treeId = lineData(0).toInt
+	    	val label = lineData(4).toInt
+	    	
+	    	if (randomForestTrees(treeId).length > 0)
+    			randomForestTrees(treeId) += ";"
+	    	randomForestTrees(treeId) += lineData.take(5).mkString(",")
+	    	
+	    	// if not a leaf node, add new nodes to split
+	    	if (label == -1)
+	    	{
+		    	val nodeId = lineData(1).toInt
+		    	val featureIndex = lineData(2).toInt
+		    	val featureValue = lineData(3).toDouble
+	    		val parentNode = previousNodeQueue.find(x => x.treeId == treeId && x.nodeId == nodeId).get
+		    	val leftBaggingTable = lineData(5).split(" ").map(_.toInt).toArray
+		    	val rightBaggingTable = lineData(6).split(" ").map(_.toInt).toArray
+	    		val features = parentNode.features.filter(x => x != featureIndex)
+
+	    		nodesQueue += new TreeNode(treeId, ((nodeId + 1) * 2) - 1, leftBaggingTable, features, generateFeatureSubspace(featureSubspaceCount, features.toBuffer), -1, -1, -1 )
+		    	nodesQueue += new TreeNode(treeId, ((nodeId + 1) * 2), rightBaggingTable, features, generateFeatureSubspace(featureSubspaceCount, features.toBuffer), -1, -1, -1 )
+	    	}
+	    }
+    } while (!nodesQueue.isEmpty)    
+	      
 	val fw = new FileWriter(outputTreeFile, false)
     val newLine = System.getProperty("line.separator");
 	try 
 	{
-	    do {
-	    	val plan = new DecisionTreeBuilder(nodesQueue.toList, 70).getPlan(inputPath, outputNodeQueuePath, outputTreePath, numTrees.toString )
-		    val runtime = ex.executePlan(plan)
-		    println("runtime: " + runtime)
-		    
-		    val previousNodeQueue = nodesQueue
-		    nodesQueue = Buffer[TreeNode]()
-		    for(line <- Source.fromFile(outputFile).getLines())
-		    {
-		    	fw.write(line + newLine)
-		    	val lineData = line.split(",")
-		    	val label = lineData(4).toInt
-		    	
-		    	// if not a leaf node, add new nodes to split
-		    	if (label == -1)
-		    	{
-			    	val treeId = lineData(0).toInt
-			    	val nodeId = lineData(1).toInt
-			    	val featureIndex = lineData(2).toInt
-			    	val featureValue = lineData(3).toDouble
-		    		val parentNode = previousNodeQueue.find(x => x.treeId == treeId && x.nodeId == nodeId).get
-			    	val leftBaggingTable = lineData(5).split(" ").map(_.toInt).toArray
-			    	val rightBaggingTable = lineData(6).split(" ").map(_.toInt).toArray
-		    		val features = parentNode.features.filter(x => x != featureIndex)
-
-		    		nodesQueue += new TreeNode(treeId, ((nodeId + 1) * 2) - 1, leftBaggingTable, features, generateFeatureSubspace(featureSubspaceCount, features.toBuffer), -1, -1, -1 )
-			    	nodesQueue += new TreeNode(treeId, ((nodeId + 1) * 2), rightBaggingTable, features, generateFeatureSubspace(featureSubspaceCount, features.toBuffer), -1, -1, -1 )
-		    	}	    	
-		    }
-	    } while (!nodesQueue.isEmpty)    
+		for (i <- 0 until numTrees)
+		{
+			fw.write(randomForestTrees(i) + newLine)
+		}
 	}
 	finally {
 	  fw.close()
 	}
-    
     ex.stop();
     
     System.exit(0)
-    
   }
 }

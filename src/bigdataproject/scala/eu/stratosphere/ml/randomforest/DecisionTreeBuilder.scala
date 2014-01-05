@@ -62,10 +62,8 @@ class DecisionTreeBuilder(var nodeQueue : List[TreeNode], var minNrOfItems : Int
   			val treeId = keyValues.split("_")(0).toInt
   			val nodeId = keyValues.split("_")(1).toInt        
 
-
       		// account for EACH occurance in bagging table
   			val tupleList = buffered.flatMap(x => (0 until x._2).map( _ => x )).toList
-  			
   			
       		// group by feature results in a List[(feature,List[inputTuple])]
       		val groupedFeatureTuples = tupleList.groupBy( _._3 ).toList
@@ -108,6 +106,8 @@ class DecisionTreeBuilder(var nodeQueue : List[TreeNode], var minNrOfItems : Int
 	  			// (feature,candidate,quality)
 	  			val bestSplit = splitQualities.maxBy(_._3)
 	  			var label = -1
+	  			var leftChild = ""
+	  			var rightChild = ""
 	  			
 	  			// create new bagging tables for the next level
 	  			val leftNode = tupleList.filter(x => x._3 == bestSplit._1 && x._4 <= bestSplit._2).map(x => x._6)
@@ -116,21 +116,21 @@ class DecisionTreeBuilder(var nodeQueue : List[TreeNode], var minNrOfItems : Int
 	  			// decide if there is a stopping condition
 	  			val stoppingCondition = leftNode.isEmpty || rightNode.isEmpty || leftNode.length < minNrOfItems || rightNode.length < minNrOfItems;
 	  			
-	  			// if yes, 
+	  			// serialize based on stopping condition
 	  			if (stoppingCondition)
 	  			{
 	  				// compute the label by max count (uniform distribution)
 	  				label = tupleList.groupBy(_._5).maxBy(x => x._2.length)._1
+	  			}else{
+		  			leftChild = leftNode.mkString(" ")
+		  			rightChild = rightNode.mkString(" ")
 	  			}
+	  			
 	  			System.out.println(label)
 	  			System.out.println(bestSplit)
-	  			System.out.println("leftnode: "+leftNode.length)
-	  			System.out.println("rightnode: "+rightNode.length)
+	  			System.out.println("leftnode: " + leftNode.length)
+	  			System.out.println("rightnode: " + rightNode.length)
 	  			
-	  			// now do the splitting
-	  			val leftChild = leftNode.mkString(" ")
-	  			val rightChild = rightNode.mkString(" ")
-	
 				// emit new node for nodeQueue
 				(treeId, nodeId, bestSplit._1, bestSplit._2, label, leftChild, rightChild )
   			}
@@ -141,7 +141,7 @@ class DecisionTreeBuilder(var nodeQueue : List[TreeNode], var minNrOfItems : Int
 	  			System.out.println(label)
 				
 	  			// emit the final tree node
-				(treeId, nodeId, -1 /* feature*/, 0.0 /*split*/, label, "", "" )
+				(treeId, nodeId, -1 /* feature*/, 0.0 /*split*/, label, " ", " " )
   			}
        	}
 
