@@ -9,7 +9,7 @@ object testEvaluationOnStratosphere {
  
   def main(args: Array[String]) { 
 	new RandomForestBuilder().eval(
-	    "/home/kay/Dropbox/kay-rep/Uni-Berlin/MA_INF_Sem3_WS13/BigDataAnalytics/datasets/normalized_0to5small_test.txt",
+	    "/home/kay/Dropbox/kay-rep/Uni-Berlin/MA_INF_Sem3_WS13/BigDataAnalytics/datasets/normalized_0to9half_test.txt",
 	    "/home/kay/rf_output_tree",
 	    "/home/kay/rf_output_evaluation"
 	    )

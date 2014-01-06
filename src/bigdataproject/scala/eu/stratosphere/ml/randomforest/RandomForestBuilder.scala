@@ -29,7 +29,11 @@ class RandomForestBuilder {
   }
   
   def generateRandomBaggingTable(number : Int)  = {
-	Array.fill(number) { Random.nextInt(number) }
+    var baggingTable = new BaggingTable
+    for( i <- 0 until number ){
+      baggingTable.add( Random.nextInt(number) )
+    }
+    baggingTable
   }
 
   def generateFeatureSubspace(randomCount : Int, maxRandomNumber : Int) : Array[Int] = {
@@ -89,7 +93,7 @@ class RandomForestBuilder {
       // randomized
       var featureSubspace = generateFeatureSubspace(featureSubspaceCount, totalFeatureCount)
       val randomSamples = generateRandomBaggingTable(sampleCount)
-      nodesQueue += new TreeNode(treeId, 0, new BaggingTable().create(randomSamples), features, featureSubspace, -1, -1, -1 )
+      nodesQueue += new TreeNode(treeId, 0, randomSamples, features, featureSubspace, -1, -1, -1 )
     }//for
     
     // if next level, read from file which node has to be split
@@ -131,12 +135,20 @@ class RandomForestBuilder {
 		    	val featureIndex = lineData(2).toInt
 		    	val featureValue = lineData(3).toDouble
 	    		val parentNode = previousNodeQueue.find(x => x.treeId == treeId && x.nodeId == nodeId).get
-		    	val leftBaggingTable = lineData(5).split(" ").map(_.toInt).toArray
-		    	val rightBaggingTable = lineData(6).split(" ").map(_.toInt).toArray
+		    	val leftBaggingTable = new BaggingTable
+		    	  lineData(5).split(" ").map(_.toInt).foreach( x => {
+		    	    leftBaggingTable.add(x)
+		    	  } )
+		    	
+	    	    val rightBaggingTable = new BaggingTable
+	    	    lineData(6).split(" ").map(_.toInt).foreach( x => {
+		    	    rightBaggingTable.add(x)
+		    	  } )
+		    	  
 	    		val features = parentNode.features.filter(x => x != featureIndex)
 
-	    		nodesQueue += new TreeNode(treeId, ((nodeId + 1) * 2) - 1,  new BaggingTable().create(leftBaggingTable), features, generateFeatureSubspace(featureSubspaceCount, features.toBuffer), -1, -1, -1 )
-		    	nodesQueue += new TreeNode(treeId, ((nodeId + 1) * 2),  new BaggingTable().create(rightBaggingTable), features, generateFeatureSubspace(featureSubspaceCount, features.toBuffer), -1, -1, -1 )
+	    		nodesQueue += new TreeNode(treeId, ((nodeId + 1) * 2) - 1,  leftBaggingTable, features, generateFeatureSubspace(featureSubspaceCount, features.toBuffer), -1, -1, -1 )
+		    	nodesQueue += new TreeNode(treeId, ((nodeId + 1) * 2),  rightBaggingTable, features, generateFeatureSubspace(featureSubspaceCount, features.toBuffer), -1, -1, -1 )
 	    	}
 	    }
     } while (!nodesQueue.isEmpty)    

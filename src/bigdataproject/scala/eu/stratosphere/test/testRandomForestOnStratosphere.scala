@@ -9,10 +9,10 @@ object testRandomForestOnStratosphere {
  
   def main(args: Array[String]) { 
 	new RandomForestBuilder().build(
-	    "/home/kay/Dropbox/kay-rep/Uni-Berlin/MA_INF_Sem3_WS13/BigDataAnalytics/datasets/normalized_0to5small.txt",
+	    "/home/kay/Dropbox/kay-rep/Uni-Berlin/MA_INF_Sem3_WS13/BigDataAnalytics/datasets/normalized_0to9half.txt",
 	    "/home/kay/rf_output",
 	    "/home/kay/rf_output_tree",
-	    50
+	    1
 	    )
   }
  
