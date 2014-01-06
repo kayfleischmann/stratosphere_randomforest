@@ -65,8 +65,7 @@ class RandomForestBuilder {
     System.exit(0)
   }
   
-  def build(inputFile : String, outputFile : String, outputTreeFile : String) = {
-    val numTrees = 10
+  def build(inputFile : String, outputFile : String, outputTreeFile : String, numTrees : Int) = {
     var nodesQueue = Buffer[TreeNode]()
     val totalFeatureCount = getFeatureCount(inputFile)
     var featureSubspaceCount = Math.round(Math.log(totalFeatureCount).toFloat + 1);

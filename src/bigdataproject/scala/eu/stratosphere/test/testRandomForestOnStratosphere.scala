@@ -11,7 +11,8 @@ object testRandomForestOnStratosphere {
 	new RandomForestBuilder().build(
 	    "/home/kay/Dropbox/kay-rep/Uni-Berlin/MA_INF_Sem3_WS13/BigDataAnalytics/datasets/normalized.txt",
 	    "/home/kay/rf_output",
-	    "/home/kay/rf_output_tree"
+	    "/home/kay/rf_output_tree",
+	    10
 	    )
   }
  
