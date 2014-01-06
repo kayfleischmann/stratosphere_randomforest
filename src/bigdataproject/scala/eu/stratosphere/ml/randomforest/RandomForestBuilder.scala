@@ -89,7 +89,7 @@ class RandomForestBuilder {
       // randomized
       var featureSubspace = generateFeatureSubspace(featureSubspaceCount, totalFeatureCount)
       val randomSamples = generateRandomBaggingTable(sampleCount)
-      nodesQueue += new TreeNode(treeId, 0, randomSamples, features, featureSubspace, -1, -1, -1 )
+      nodesQueue += new TreeNode(treeId, 0, new BaggingTable().create(randomSamples), features, featureSubspace, -1, -1, -1 )
     }//for
     
     // if next level, read from file which node has to be split
@@ -107,7 +107,9 @@ class RandomForestBuilder {
     
     do {
     	val plan = new DecisionTreeBuilder(nodesQueue.toList, 70).getPlan(inputPath, outputNodeQueuePath, outputTreePath, numTrees.toString )
-	    val runtime = ex.executePlan(plan)
+    	//plan.setDefaultParallelism(2)
+    	//plan.setMaxNumberMachines(2)
+    	val runtime = ex.executePlan(plan)
 	    println("runtime: " + runtime)
 	    
 	    val previousNodeQueue = nodesQueue
@@ -133,8 +135,8 @@ class RandomForestBuilder {
 		    	val rightBaggingTable = lineData(6).split(" ").map(_.toInt).toArray
 	    		val features = parentNode.features.filter(x => x != featureIndex)
 
-	    		nodesQueue += new TreeNode(treeId, ((nodeId + 1) * 2) - 1, leftBaggingTable, features, generateFeatureSubspace(featureSubspaceCount, features.toBuffer), -1, -1, -1 )
-		    	nodesQueue += new TreeNode(treeId, ((nodeId + 1) * 2), rightBaggingTable, features, generateFeatureSubspace(featureSubspaceCount, features.toBuffer), -1, -1, -1 )
+	    		nodesQueue += new TreeNode(treeId, ((nodeId + 1) * 2) - 1,  new BaggingTable().create(leftBaggingTable), features, generateFeatureSubspace(featureSubspaceCount, features.toBuffer), -1, -1, -1 )
+		    	nodesQueue += new TreeNode(treeId, ((nodeId + 1) * 2),  new BaggingTable().create(rightBaggingTable), features, generateFeatureSubspace(featureSubspaceCount, features.toBuffer), -1, -1, -1 )
 	    	}
 	    }
     } while (!nodesQueue.isEmpty)    

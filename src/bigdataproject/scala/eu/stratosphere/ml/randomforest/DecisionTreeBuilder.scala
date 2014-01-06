@@ -34,25 +34,30 @@ class DecisionTreeBuilder(var nodeQueue : List[TreeNode], var minNrOfItems : Int
 	  val features = values.tail.tail.mkString(" ")
 	  	(index,label,features.split(" "))
     }
-
     // for each sample and each tree and node, create an histogram tuple 
     val treenode_samples = samples  
 		.flatMap { case (index,label, features ) => 
 			nodeQueue
 				.filter { node => node.baggingTable.contains(index) }
 				.flatMap( node => 
+				  {
+				    var baggingTableCount = node.baggingTable.count(index)
+				    var id = node.treeId+"_"+node.nodeId
+				    
 					// filter feature space for this node, and ignore the other features
 					node.featureSpace.map( feature =>
-						(node.treeId+"_"+node.nodeId,
-			  			node.baggingTable.count( _ == index), 
+						(id,
+			  			baggingTableCount, 
 			  			feature, // feature attribute index
 			  			features(feature).toDouble, // feature value
 			  			label,
 			  			index)
 			  			)
-			  		)
+			  			
+				  }
+				)
 			}
-    
+
     val newQueueNodesHistograms = treenode_samples
       .groupBy { _._1 }
       .reduceGroup { values =>
@@ -145,9 +150,8 @@ class DecisionTreeBuilder(var nodeQueue : List[TreeNode], var minNrOfItems : Int
   			}
        	}
 
-    val sink = newQueueNodesHistograms.write( outputPath, CsvOutputFormat("\n",","))
-
-    new ScalaPlan(Seq(sink))
+      val sink = newQueueNodesHistograms.write( outputPath, CsvOutputFormat("\n",","))
+      new ScalaPlan(Seq(sink))
   }
 
   def isStoppingCriterion (groupedFeatureTuples : List[Int] ) ={
@@ -174,7 +178,6 @@ class DecisionTreeBuilder(var nodeQueue : List[TreeNode], var minNrOfItems : Int
   // OUTPUT
   // (feature,candidate,quality)
   
-  
   def split_quality(  	groupedFeatureTuples : List[(Int,List[(String,Int,Int,Double,Int,Int)])], 
 		  				feature : Int,  
 		  				candidate : Double, 
@@ -190,7 +193,6 @@ class DecisionTreeBuilder(var nodeQueue : List[TreeNode], var minNrOfItems : Int
     val tau=0.5
 	val quality=quality_function( tau, qLj.flatMap(_._2).map( _._2), qLj.flatMap(_._2).map( _._2), qRj.flatMap(_._2).map( _._2) );
   
-
     (feature,candidate,quality)
   }
   
