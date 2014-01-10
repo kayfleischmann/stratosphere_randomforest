@@ -4,6 +4,7 @@ import scala.collection.mutable.HashMap
 
 case class BaggingTable  {
 	var baggingTable = HashMap[Int,Int]()
+	def getBaggingTable = baggingTable
 	def create(table : Array[Int])  : this.type = {
 	  table.foreach(i => add(i))
       this

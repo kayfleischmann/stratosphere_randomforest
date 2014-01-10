@@ -3,18 +3,7 @@ import java.io.PrintWriter
 import mnist.tools.MnistManager
 
 class MNISTParser {
-  
-  
-  def main(args: Array[String]) {
-	  	saveData(new MnistManager( "train-images.idx3-ubyte",
-			  					"train-labels.idx1-ubyte"),
-			  					"C:\\Projects\\StratosphereRandomForest\\Prototype1\\normalized.txt", 5000)
-	  	saveData(new MnistManager( "t10k-images.idx3-ubyte",
-			  					"t10k-labels.idx1-ubyte"),
-			  					"C:\\Projects\\StratosphereRandomForest\\Prototype1\\normalized_test.txt", 100)
-  }
-  
-  private def saveData(m : MnistManager, outPath : String, count : Int): Unit = {
+  def saveData(m : MnistManager, outPath : String, count : Int): Unit = {
     
     var labels = m.getLabels()
     var num_samples = labels.getCount() 
@@ -30,22 +19,11 @@ class MNISTParser {
 
     	if (true)
     	{
-    		//System.out.println("Label:" + m.readLabel());
-    		
-    		//System.out.println(i + ":" + m.readLabel() + ";" + image.map(line => line.mkString(",")).mkString(","))
-    		
     		var text = ""
 			 if (index > 0)
 			   text += "\r\n"
-    		text += index + " " + label + " " + image.map(line => line.map(arv => arv.toDouble / 256.toDouble).mkString(" ")).mkString(" ")
+    		text += index + "," + label + "," + image.map(line => line.map(arv => arv.toDouble / 256.toDouble).mkString(" ")).mkString(" ")
     		out.print(text);
-    		//System.out.println("Image length: " + m.getImages().getEntryLength());
-    		//val images = m.getImages()
-    		
-    		//System.out.println("Current Index: " + m.getImages().getCurrentIndex());
-    		
-    		//System.out.println("Label length: " + m.getLabels().getEntryLength());
-    		//System.out.println("Label Index: " + m.getLabels().getCurrentIndex());
     		index = index + 1;
     	}
     }
