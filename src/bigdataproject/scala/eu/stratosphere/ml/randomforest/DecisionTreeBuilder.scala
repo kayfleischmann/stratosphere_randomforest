@@ -228,9 +228,6 @@ class DecisionTreeBuilder(var minNrOfItems : Int, var featureSubspaceCount : Int
 		  				h : Histogram,
 		  				totalSamples : Int) = {  
 
-      h.print
-	  //System.out.println( sampleList .map({ case(label,sampleIndex,sample) => (label,sampleIndex,sample.filter( x => x._1 == feature).toList ) }).toList )
-			  				
 	  // filter feature from all samples
 	  val featureList = sampleList
 			  				.map({ case(label,sampleIndex,sample) => (label,sample.filter( x => x._1 == feature).head) })
@@ -239,7 +236,9 @@ class DecisionTreeBuilder(var minNrOfItems : Int, var featureSubspaceCount : Int
 	  val qj = featureList
   				.groupBy( _._1) /*group by label */
   				.map( x=> (x._2.length.toDouble / totalSamples ))
-	  
+
+  	  //System.out.println("feature:"+feature+"    candidate:"+candidate+"    "+h.uniform(10)+"     histogram:"+h.toString)
+  				
   	  // compute probability distribution for each child (Left,Right) and the current candidate with the specific label
   	  val qLj = featureList
   				.filter({ case(label,sample) => sample._2 <= candidate})

@@ -24,11 +24,10 @@ case class Histogram(feature : Integer, maxBins : Integer) {
       var i = sums.filter( x=>(x<s) ).length-1
       if(i<0)i=0 // this is important if the first bucket is very large
       val d = math.abs(s - sums(i))
-      val pi = bins(i)
-      
+      val pi = bins(i)      
       val pi1 = bins(i+1)
-      val a = math.max( pi1._2 - pi._2, 0.00000001 )
-      val b = 2*pi._2      
+      val a = math.max( pi1._2 - pi._2, 0.00000001)
+      val b = 2*pi._2.toDouble
       val c = -2*d
       val z = (-b + math.sqrt(b*b - 4*a*c)) / (2*a);
       val uj = pi._1+(pi1._1 - pi._1)*z
