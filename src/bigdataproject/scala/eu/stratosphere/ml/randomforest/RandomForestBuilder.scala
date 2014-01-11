@@ -70,7 +70,11 @@ class RandomForestBuilder {
   }
   
   def build( outputPath : String, inputFile : String, inputNodeQueue : String, outputFile : String, outputTreeFile : String, numTrees : Int) = {
-    System.out.println("build started");
+
+    // start measuring time
+	val t0 = System.currentTimeMillis
+
+    System.out.println("building random forest on stratosphere started");
     var nodesQueue = Buffer[TreeNode]()
     val totalFeatureCount = getFeatureCount(inputFile)
     var featureSubspaceCount = Math.round(Math.log(totalFeatureCount).toFloat + 1);
@@ -100,6 +104,8 @@ class RandomForestBuilder {
       nodesQueue += new TreeNode(treeId, 0, randomSamples, features, featureSubspace, -1, -1, -1 )
     }//for
 
+    System.out.println("write initial nodequeue to build");
+
     // write the initial nodes to file to join in the iteration
     writeNodes(nodesQueue, inputNodeQueuePath);
 
@@ -116,8 +122,9 @@ class RandomForestBuilder {
     
     var nodeQueueSize=0
     var level=0
+    var totalNodes=nodesQueue.length
     
-    // cleanup
+    // do some cleanup stuff
     new File(outputTreePath).delete
     
     do {
@@ -137,6 +144,7 @@ class RandomForestBuilder {
     	nodeQueueSize = Source.fromFile(inputNodeQueuePath).getLines().length    	
     	// increment for next level
     	level = level +1;
+    	totalNodes+=nodeQueueSize
     	
    } while (nodeQueueSize>0) 
 	
@@ -163,7 +171,17 @@ class RandomForestBuilder {
 
     ex.stop();
 
-    System.exit(0)
+    // stop measuring time
+	val t1 = System.currentTimeMillis
+
+	System.out.println("statistics");
+	System.out.println("build-time: "+ ((t1-t0)/1000.0)/60.0+"mins" )
+	System.out.println("samples: "+ sampleCount )
+	System.out.println("features per sample: "+ totalFeatureCount )
+	System.out.println("trees: "+ numTrees )
+	System.out.println("tree-levels (iterations): "+ (level-1) )
+	
+	System.exit(0)
   }
   
   // write node-queue efficiently to file
