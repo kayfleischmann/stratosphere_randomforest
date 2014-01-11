@@ -156,10 +156,13 @@ class RandomForestBuilder {
 	fw.close()
 	
 	new File(outputPath).listFiles
-				.filter( x=> !x.getName.equals(new File(outputTreePath).getName))
-				.foreach( x => x.delete() )
+			.filter(_.getName.startsWith( new File(outputTreePath).getName))
+			.filter( x=> !x.getName.equals(new File(outputTreePath).getName))
+			.foreach( x => x.delete() )
+
+
     ex.stop();
-    
+
     System.exit(0)
   }
   
