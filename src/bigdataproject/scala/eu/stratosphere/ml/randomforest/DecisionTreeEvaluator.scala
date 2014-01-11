@@ -23,13 +23,25 @@ class DecisionTreeEvaluator() extends PlanAssembler with PlanAssemblerDescriptio
     val inputFile = TextFile(inputPath)
     val treeFile = TextFile(treePath)
     
-    val treeEvaluations = inputFile.cross(treeFile)
-    	.map((line, tree) => {
-	      val nodes = tree.split(";").map(node => {
-	        val nodeData = node.split(",").map(_.trim())
-	        new TreeNode(nodeData(0).toInt, nodeData(1).toInt, null, null, null, nodeData(2).toInt, nodeData(3).toDouble, nodeData(4).toInt)
-	      })
-	      
+    val treeNodes = treeFile
+    		.map({nodedata =>
+		        val treeId = nodedata.split(",")(0)	        
+		        (treeId,nodedata)
+	      		})
+	      	.groupBy( _._1 )
+	      	.reduceGroup( values => {
+	      		val buffered = values.buffered.toList
+	      		val treeId = buffered.head._1
+	      		val nodes = buffered;
+	      		(nodes.map({x=>x._2}).mkString(";"))
+	      	} )
+    val treeEvaluations = inputFile
+    			.cross(treeNodes)
+    			.map((line, tree) => {    				
+				 val nodes = tree.split(";").map(node => {
+				                val nodeData = node.split(",").map(_.trim())
+				                new TreeNode(nodeData(0).toInt, nodeData(1).toInt, null, null, null, nodeData(2).toInt, nodeData(3).toDouble, nodeData(4).toInt)
+				              })				          
 		  val values = line.split(" ")
 		  val index = values.head.trim().toInt
 		  val label = values.tail.head.trim().toInt
@@ -37,20 +49,21 @@ class DecisionTreeEvaluator() extends PlanAssembler with PlanAssemblerDescriptio
 	      
 		  var currentNodeIndex = 0;
 	      var labelVote = -1;
-	      
 	      do
 	      {
-	    	  val currentNode = nodes.find(_.nodeId == currentNodeIndex).orNull
-
+			  val currentNode = nodes.find(_.nodeId == currentNodeIndex).orNull
 			  labelVote = currentNode.label
+			  
 			  if (labelVote == -1)
 			  {
 			    //right child:
 			    currentNodeIndex = ((currentNode.nodeId + 1) * 2)
+			    
 			    //left child:
 				if (features(currentNode.splitFeatureIndex).toDouble <= currentNode.splitFeatureValue)
 				    currentNodeIndex -= 1
 			  }
+	    	  
 	      }while (labelVote == -1)
 		  
 	      (index,labelVote,label)
@@ -71,9 +84,8 @@ class DecisionTreeEvaluator() extends PlanAssembler with PlanAssemblerDescriptio
 			//group by label, then count occurances
 			(dataItemIndex, winningLabelGuess, actualLabel)
 		})
-	    
+	  
     val sink = forestEvaluations.write(outputPath, CsvOutputFormat("\n",","))
-
     new ScalaPlan(Seq(sink))
   }
 }

@@ -151,14 +151,13 @@ class RandomForestBuilder {
 	val fw = new FileWriter( new File(outputTreePath), false )
 	for( file <- files ) {
 	  fw.write( file._2.mkString("\n"))
+	  fw.write( "\n" )
 	}//for
 	fw.close()
 	
 	new File(outputPath).listFiles
 				.filter( x=> !x.getName.equals(new File(outputTreePath).getName))
 				.foreach( x => x.delete() )
-	
-	
     ex.stop();
     
     System.exit(0)

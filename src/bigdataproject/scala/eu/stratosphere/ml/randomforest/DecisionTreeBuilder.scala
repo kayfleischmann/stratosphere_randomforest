@@ -253,7 +253,7 @@ class DecisionTreeBuilder(var minNrOfItems : Int, var featureSubspaceCount : Int
 
   	  
   	  // TODO: quality_function do not use the qj List, instead use the qLj list two times
-	  val tau=0.2
+	  val tau=0.5
 	  val quality=quality_function( tau, qj.toList, qLj.toList, qRj.toList );
 	  
 	  (feature,candidate, quality)
