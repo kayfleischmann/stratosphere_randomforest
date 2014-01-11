@@ -69,31 +69,18 @@ class RandomForestBuilder {
     System.exit(0)
   }
   
-  def build( outputPath : String, inputFile : String, inputNodeQueue : String, outputFile : String, outputTreeFile : String, numTrees : Int) = {
+  def build( outputPath : String, inputPath : String, inputNodeQueuePath : String, outputNodeQueuePath : String, outputTreePath : String, numTrees : Int) = {
 
     // start measuring time
 	val t0 = System.currentTimeMillis
 
     System.out.println("building random forest on stratosphere started");
     var nodesQueue = Buffer[TreeNode]()
-    val totalFeatureCount = getFeatureCount(inputFile)
+    val totalFeatureCount = getFeatureCount(inputPath)
     var featureSubspaceCount = Math.round(Math.log(totalFeatureCount).toFloat + 1);
-          
-    // Write test input to temporary directory
-    val inputPath = inputFile; //new File(inputFile).toURI().toString()
-      
-    // Write test input to temporary directory
-    val inputNodeQueuePath = inputNodeQueue; //new File(inputNodeQueue).toURI().toString()
-
-    // Output
-    val outputNodeQueuePath = outputFile; //new File(outputFile).toURI().toString()
-    // read from the file and build the TreeNode List
-
-    // Output
-    val outputTreePath = outputTreeFile; //new File(outputTreeFile).toURI().toString()
     
     // add node to build for each tree
-    val sampleCount = getSampleCount(inputFile)
+    val sampleCount = getSampleCount(inputPath)
     for (treeId <- 0 until numTrees ){
       // TODO: the features left is the whole set minus still used best-splits
       var features = (0 until totalFeatureCount).toArray
@@ -129,7 +116,15 @@ class RandomForestBuilder {
     
     do {
     	val level_outputTreePath=outputTreePath+"_"+level
-    	val plan = new DecisionTreeBuilder(70,featureSubspaceCount).getPlan(inputPath /*samples*/, inputNodeQueuePath, outputNodeQueuePath , level_outputTreePath, numTrees.toString, level.toString )
+    	val plan = new DecisionTreeBuilder(70,featureSubspaceCount).getPlan(
+    	    new File(inputPath).toURI().toString(),
+    	    new File(inputNodeQueuePath).toURI().toString(),
+    	    new File(outputNodeQueuePath).toURI().toString(),
+    	    new File(level_outputTreePath).toURI().toString(),
+    	    numTrees.toString,
+    	    level.toString
+    	    )
+    	    
     	val runtime = ex.executePlan(plan)
     	println("runtime: " + runtime)
 
@@ -146,28 +141,15 @@ class RandomForestBuilder {
     	level = level +1;
     	totalNodes+=nodeQueueSize
     	
+    	//store nodes for tree file
+		val fw = new FileWriter( new File(outputTreePath), true )
+		fw.write(Source.fromFile(level_outputTreePath).getLines().mkString(System.getProperty("line.separator")))
+		fw.write(System.getProperty("line.separator"))
+		fw.close()
+		new File(level_outputTreePath).delete()
+    	
    } while (nodeQueueSize>0) 
 	
-	// build final tree  
-	// concatenate tree to single file
-	val files = new File(outputPath).listFiles
-				.filter(_.getName.startsWith( new File(outputTreePath).getName))
-				.map({ file => (file, Source.fromFile(file).getLines())  })
-				.filter( x=> !x._1.getName.equals(new File(outputTreePath).getName))
-				.sortBy({x=>x._1})
-				
-	val fw = new FileWriter( new File(outputTreePath), false )
-	for( file <- files ) {
-	  fw.write( file._2.mkString("\n"))
-	  fw.write( "\n" )
-	}//for
-	fw.close()
-	
-	new File(outputPath).listFiles
-			.filter(_.getName.startsWith( new File(outputTreePath).getName))
-			.filter( x=> !x.getName.equals(new File(outputTreePath).getName))
-			.foreach( x => x.delete() )
-
 
     ex.stop();
 
@@ -205,7 +187,8 @@ class RandomForestBuilder {
 		  fw.write( ",")
 		  fw.write( node.featureSpace.mkString(" ")+"," )
 		  fw.write( node.features.mkString(" "));
-		  fw.write( newLine )
+		  if (i != nodes.length - 1)
+			  fw.write( newLine )
 		}
 	}
 	finally {

@@ -50,7 +50,7 @@ class DecisionTreeBuilder(var minNrOfItems : Int, var featureSubspaceCount : Int
     // prepare the treeId,nodeId and featureList for next round
     // map to new potential nodeIds
     val nodeFeatures = inputNodeQueue flatMap { line =>
-      val values = line.split(",")      
+      val values = line.trim.split(",")      
       val treeId = values(0).toInt
       val nodeId = values(1).toInt
       val features = values(7)        
@@ -200,16 +200,17 @@ class DecisionTreeBuilder(var minNrOfItems : Int, var featureSubspaceCount : Int
 
 		    				  		(nodeResult._1, nodeResult._2, nodeResult._3, nodeResult._4, nodeResult._5, nodeResult._6, featureSpace.mkString(" "), features.mkString(" ") )			    				
 			    				})
-        
+    
+    val newLine = System.getProperty("line.separator");
     // output to tree file if featureIndex != -1 (node) or leaf (label detected)  
 	val finaTreeNodesSink = nodeResults
 							.filter({ case(treeId,nodeId,featureIndex,splitValue,label,baggingTable,_,_) => 
 							  	featureIndex != -1 || label != -1 })
-							.write( outputTreePath, CsvOutputFormat("\n",","))
+							.write( outputTreePath, CsvOutputFormat(newLine,","))
 
 	// output nodes to build if 
 	val nodeQueueSink = nodeResultsWithFeatures
-							.write( outputNodeQueuePath, CsvOutputFormat("\n",","))
+							.write( outputNodeQueuePath, CsvOutputFormat(newLine,","))
     	
     new ScalaPlan(Seq(finaTreeNodesSink, nodeQueueSink))
   }
