@@ -43,7 +43,7 @@ class DecisionTreeBuilder(var minNrOfItems : Int, var featureSubspaceCount : Int
       
       //(treeId,nodeId,baggingTable,featureSpace)
       baggingTable.split(" ").map( sampleIndex => 
-      		(treeId,nodeId,sampleIndex.toInt,featureSpace /*all features may missing for next round. maybe read this from tree*/ )
+      		(treeId,nodeId,sampleIndex.toInt,featureSpace.split(" ").map(_.toInt) /*all features may missing for next round. maybe read this from tree*/ )
        )
     }
     
@@ -67,7 +67,7 @@ class DecisionTreeBuilder(var minNrOfItems : Int, var featureSubspaceCount : Int
 	  val sampleIndex = values.head.trim().toInt
 	  val label = values.tail.head.trim().toInt
 	  val features = values.tail.tail	  
-	  	(sampleIndex, label, features.mkString(" ") )
+	  (sampleIndex, label, features.map(_.toDouble) )
     }
 
     // join
@@ -82,10 +82,10 @@ class DecisionTreeBuilder(var minNrOfItems : Int, var featureSubspaceCount : Int
     				  	    nodeSample._1+"_"+nodeSample._2, /*group key: treeId_nodeId*/
     				  	    nodeSample._3 /*sampleIndex*/, 
     						sample._2, /*label*/
-    						sample._3 .split(" ")
+    						sample._3
     							.zipWithIndex
-    							.filter( x => nodeSample._4.split(" ").map({_.toInt}).contains(x._2.toInt)  )
-    							.map({x=>""+x._2+":"+x._1}).mkString(" ")
+    							.filter( x => nodeSample._4.contains(x._2.toInt)  )
+    							.map({x=> (x._2, x._1)})
     					) }
 
     val nodeResults = joined
@@ -98,8 +98,7 @@ class DecisionTreeBuilder(var minNrOfItems : Int, var featureSubspaceCount : Int
 		  			val nodeId = keyValues.split("_")(1).toInt
 
 		  			// pre process incoming data
-		  			val sampleList = buffered.toList
-		  						.map({ case (treeIdnodeId,sampleIndex,label,features) => (label, sampleIndex, features.split(" ").map( f => (f.split(":")(0).toInt, f.split(":")(1).toDouble) )) })
+		  			val sampleList = buffered.toList.map({ case (treeIdnodeId,sampleIndex,label,features) => (label, sampleIndex, features) })
 		  			
 		  			// compute total sample count in this node
 		  			val totalSamples = sampleList.length
@@ -134,12 +133,12 @@ class DecisionTreeBuilder(var minNrOfItems : Int, var featureSubspaceCount : Int
 			  							  			.map(x=>(sampleIndex,x._1,x._2)) })
 
 			  			// decide if there is a stopping condition
-			  			val stoppingCondition = leftNode.isEmpty || rightNode.isEmpty || leftNode.length < minNrOfItems || rightNode.length < minNrOfItems;
+			  			val stoppingCondition = leftNode.isEmpty || rightNode.isEmpty || leftNode.lengthCompare(minNrOfItems) == -1 || rightNode.lengthCompare(minNrOfItems) == -1;
 			  			
 			  			System.out.println(bestSplit)
 			  			System.out.println("right:"+rightNode.length)
 			  			System.out.println("left:"+leftNode.length)
-						
+						 
 			  			// serialize based on stopping condition
 			  			if (stoppingCondition)
 			  			{

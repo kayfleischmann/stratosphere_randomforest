@@ -66,6 +66,23 @@ class RandomForestBuilder {
     ex.start()
 	val plan = new DecisionTreeEvaluator().getPlan(inputPath, treePath, outputPath)
     val runtime = ex.executePlan(plan)
+    
+    val src = io.Source.fromFile(outputFile)
+	try {
+		val lines = src.getLines.map(_.split(",").map(_.toInt)).toList
+		
+		
+		System.out.println("statistics");
+		System.out.println("total results: "+ lines.length )
+		val correct = lines.filter(x => x(1) == x(2)).length
+		System.out.println("correct: "+ correct)
+		val wrong = lines.filter(x => x(1) != x(2)).length
+		System.out.println("wrong: "+ wrong)
+		System.out.println("percentage: " + (correct.toDouble * 100 / lines.length.toDouble))
+	} finally {
+		src.close()
+	}
+	    
     System.exit(0)
   }
   
