@@ -1,9 +1,12 @@
 package bigdataproject.scala.eu.stratosphere.ml.randomforest
 
-case class Histogram(feature : Integer, maxBins : Integer) {
-  var bins = scala.collection.mutable.Buffer[(Double,Int)]()
-  var maxBinValue = Double.NegativeInfinity
-  var minBinValue = Double.PositiveInfinity
+case class Histogram(
+		feature : Integer,
+		maxBins : Integer,
+		var bins : scala.collection.mutable.Buffer[(Double,Int)] = scala.collection.mutable.Buffer[(Double,Int)](),
+		var maxBinValue : Double = Double.NegativeInfinity,
+		var minBinValue : Double = Double.PositiveInfinity
+	) {
   def getBins = bins
  
   def getMax = maxBinValue

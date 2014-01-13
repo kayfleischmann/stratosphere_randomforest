@@ -25,10 +25,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int) 
 		val trainingSet = TextFile(inputPath)
 		val inputNodeQueue = TextFile(inputNodeQueuePath)
 
-		// INPUT: nodequeue to build
-		// treeID, nodeId, baggingTable, featureSpace, features
-
-		val baggingTable_nodequeue = inputNodeQueue flatMap { line =>
+		val nodequeue = inputNodeQueue map { line =>
 			val values = line.split(",")
 			val treeId = values(0).toInt
 			val nodeId = values(1).toInt
@@ -37,28 +34,10 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int) 
 			val label = values(4)
 			val baggingTable = values(5)
 			val featureSpace = values(6)
-			//val features = values(6).split(" ")
 
-			//(treeId,nodeId,baggingTable,featureSpace)
-			baggingTable.split(" ").map(sampleIndex =>
-				(treeId, nodeId, sampleIndex.toInt, featureSpace.split(" ").map(_.toInt) /*all features may missing for next round. maybe read this from tree*/ ))
+			(treeId, nodeId, baggingTable, featureSpace)
 		}
 
-		// prepare the treeId,nodeId and featureList for next round
-		// map to new potential nodeIds
-		val nodeFeatures = inputNodeQueue flatMap { line =>
-			val values = line.trim.split(",")
-			val treeId = values(0).toInt
-			val nodeId = values(1).toInt
-			val features = values(7)
-
-			val leftNodeId = ((nodeId + 1) * 2) - 1
-			val rightNodeId = ((nodeId + 1) * 2)
-
-			List((treeId, leftNodeId, features), (treeId, rightNodeId, features))
-		}
-
-		// prepare string input for next operations
 		val samples = trainingSet map { line =>
 			val values = line.split(" ")
 			val sampleIndex = values.head.trim().toInt
@@ -67,49 +46,50 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int) 
 			(sampleIndex, label, features.map(_.toDouble))
 		}
 
-		// join
-		//  bagging table
-		//  with samples
-		val joined = baggingTable_nodequeue
+		val nodesAndSamples = nodequeue.flatMap { case(treeId,nodeId,baggingTable,featureSpace) =>
+				baggingTable
+					.split(" ")
+					.groupBy(x => x)
+					.map(sampleIndex => (treeId, nodeId, sampleIndex._1.toInt, featureSpace.split(" ").map(_.toInt), sampleIndex._2.length))
+			}
 			.join(samples)
 			.where { x => x._3 }
 			.isEqualTo { x => x._1 }
-			.map {
-				(node, sample) =>
+			.map {(node, sample) =>
 				(
-					node._1 + "_" + node._2, /*group key: treeId_nodeId*/
-					node._3 /*sampleIndex*/ ,
-					sample._2, /*label*/
-					sample._3 /* features */
-						.zipWithIndex
-						.filter(x => node._4.contains(x._2))
-						.map({ x => (x._2, x._1) })
+				node._1, //treeId
+				node._2, //nodeid
+				sample._1, //sampleIndex
+				sample._2, //label
+				sample._3.zipWithIndex.filter(x => node._4.contains(x._2)), //features
+				node._5 //count
 				)
 			}
 
-		val nodeResults = joined
-			.groupBy(_._1)
-			.reduceGroup({ values =>
+		val nodeResults = nodesAndSamples
+			.groupBy { case (treeId, nodeId, sampleIndex, label, feature, count) => (treeId, nodeId)}
+			.reduceGroup(histograms => {
+				val buffered = histograms.buffered
+				val keyValues = buffered.head				
 				val buckets = 10
-				val buffered = values.buffered
-				val keyValues = buffered.head._1
-				val treeId = keyValues.split("_")(0).toInt
-				val nodeId = keyValues.split("_")(1).toInt
+				val bufferList = buffered.toList.flatMap(x => 0.until(x._6).map(i => x))
+				val mergedHistograms = bufferList
+					.flatMap{case (treeId, nodeId, sampleIndex, label, features, count) => features.map(f => (f._1, f._2))}
+					.groupBy(_._2)
+					.map(x => x._2.map(f => new Histogram(f._2, buckets).update(f._1)).reduceLeft( (s1, s2) => s1.merge(s2)))
 
-				// pre process incoming data
-				val sampleList = buffered.map({ case (treeIdnodeId, sampleIndex, label, features) => (label, sampleIndex, features) }).toList
-
-				// compute total sample count in this node
-				val totalSamples = sampleList.length
-
-				// compute the histogram for each feature
-				val mergedHistogram = sampleList
-					.map({ case (label, sampleIndex, features) => features.map({ case (featureIndex, featureValue) => new Histogram(featureIndex, buckets).update(featureValue) }) })
-					.reduceLeft((s1, s2) => s1.zip(s2).map(x => x._1.merge(x._2)))
-
+				//List[(Int, Int, List[(Int, Double)])] ..... label, sampleIndex, feature
+				val sampleList = bufferList
+					.map{case (treeId, nodeId, sampleIndex, label, features, count) => (label, sampleIndex, features.map(x => (x._2, x._1)))}
+					.toList
+					
+				val treeId = keyValues._1
+	  			val nodeId = keyValues._2
+	  			val totalSamples = sampleList.length
+	  			
 				// find some split candidates to make further evaluation
-				val splitCandidates = mergedHistogram.map(x => (x.feature, x.uniform(buckets), x)).filter(_._2.length > 0)
-
+				val splitCandidates = mergedHistograms.map(x => (x.feature, x.uniform(buckets), x)).filter(_._2.length > 0)
+				
 				// compute split-quality for each candidate
 				val splitQualities = splitCandidates.flatMap {
 					case (featureIndex, featureBuckets, x) =>
@@ -124,15 +104,15 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int) 
 					// create new bagging tables for the next level
 					val leftNode = sampleList
 						.flatMap({
-							case (label, sampleIndex, features) =>
+							case (label,sampleIndex, features) =>
 								features.filter({ case (feature, value) => feature == bestSplit._1 && value <= bestSplit._2 })
-									.map(x => (sampleIndex, x._1, x._2))
+									.map(x => (sampleIndex,x._1, x._2))
 						})
 					val rightNode = sampleList
 						.flatMap({
-							case (label, sampleIndex, features) =>
+							case (label,sampleIndex, features) =>
 								features.filter({ case (feature, value) => feature == bestSplit._1 && value > bestSplit._2 })
-									.map(x => (sampleIndex, x._1, x._2))
+									.map(x => (sampleIndex,x._1, x._2))
 						})
 
 					// decide if there is a stopping condition
@@ -146,7 +126,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int) 
 					if (stoppingCondition) {
 						// compute the label by max count (uniform distribution)
 						val label = sampleList
-							.groupBy({ case (label, sampleIndex, sample) => (label) })
+							.groupBy({ case (label,sampleIndex,sample) => (label) })
 							.maxBy(x => x._2.length)._1
 
 						List((treeId, nodeId, -1 /* feature*/ , 0.0 /*split*/ , label, "", "", ""))
@@ -184,7 +164,32 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int) 
 				}
 			})
 			.flatMap(x => x)
+			
 
+		val newLine = System.getProperty("line.separator");
+			
+		// output to tree file if featureIndex != -1 (node) or leaf (label detected)  
+		val finaTreeNodesSink = nodeResults
+			.filter({
+				case (treeId, nodeId, featureIndex, splitValue, label, baggingTable, _, _) =>
+					featureIndex != -1 || label != -1
+			})
+			.write(outputTreePath, CsvOutputFormat(newLine, ","))
+		
+		// prepare the treeId,nodeId and featureList for next round
+		// map to new potential nodeIds
+		val nodeFeatures = inputNodeQueue flatMap { line =>
+			val values = line.trim.split(",")
+			val treeId = values(0).toInt
+			val nodeId = values(1).toInt
+			val features = values(7)
+
+			val leftNodeId = ((nodeId + 1) * 2) - 1
+			val rightNodeId = ((nodeId + 1) * 2)
+
+			List((treeId, leftNodeId, features), (treeId, rightNodeId, features))
+		}
+			
 		// filter nodes to build, join the last featureList from node and remove :q
 		val nodeResultsWithFeatures = nodeResults
 			.filter({
@@ -201,15 +206,6 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int) 
 
 				(nodeResult._1, nodeResult._2, nodeResult._3, nodeResult._4, nodeResult._5, nodeResult._6, featureSpace.mkString(" "), features.mkString(" "))
 			})
-
-		val newLine = System.getProperty("line.separator");
-		// output to tree file if featureIndex != -1 (node) or leaf (label detected)  
-		val finaTreeNodesSink = nodeResults
-			.filter({
-				case (treeId, nodeId, featureIndex, splitValue, label, baggingTable, _, _) =>
-					featureIndex != -1 || label != -1
-			})
-			.write(outputTreePath, CsvOutputFormat(newLine, ","))
 
 		// output nodes to build if 
 		val nodeQueueSink = nodeResultsWithFeatures
