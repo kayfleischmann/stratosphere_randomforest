@@ -65,6 +65,52 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int) 
 				node._5 //count
 				)
 			}
+		val nodeSampleFeatures  = nodesAndSamples
+				.flatMap  { case(treeId,nodeId,sampleIndex,label,features,count) =>
+					features.map({ case(featureValue,featureIndex) => ( (treeId, nodeId,featureIndex), sampleIndex, label, featureValue, featureIndex, count )})
+				}
+
+		val nodeSampleFeatureHistograms = nodeSampleFeatures
+							.map({ case ( (treeId,nodeId,feature),sampleIndex,label,featureValue,featureIndex, count) => 
+										((treeId,nodeId,featureIndex),new Histogram(featureIndex, 10).update(featureValue,count).toString ) })
+
+		val  nodeHistograms = nodeSampleFeatureHistograms
+							.groupBy({_._1})
+							.reduce( {(left,right) => ( left._1, Histogram.fromString(left._2).merge(Histogram.fromString(right._2)).toString ) } )
+						
+							
+		val nodeFeatureDistributions = nodeHistograms
+									.flatMap( { nodeHistogram => 
+												Histogram.fromString(nodeHistogram._2).uniform(10)
+															.map({ splitCandidate=> (nodeHistogram._1,splitCandidate)}) } )
+
+									.join(nodeSampleFeatures)
+									.where( { x => x._1._1 })
+									.isEqualTo { x => x._1 }
+									.map({ (nodeHistogram, nodeSampleFeature) =>
+									  	(	nodeHistogram /* ( (treeImapd,nodeId,featureIndex),splitCandidate)*/,  
+									  		nodeSampleFeature._4 /*featureValue*/, 
+									  		nodeSampleFeature._3 /*label*/, 
+									  		1 )
+									})
+									
+
+  		val nodeFeatureDistributions_qj = nodeFeatureDistributions
+  									.map({ x => (x._1, createLabelArray(10, List( (x._3-1, 1)))) })
+ 									.groupBy({x=>x._1})
+									.reduce({(left,right)=>(left._1, left._2.zip(right._2).map(x=>x._1+x._2)) })
+									
+  		val nodeFeatureDistributions_qjL = nodeFeatureDistributions
+  									.filter({x=> x._3 <= x._1._2 })
+  									.map({ x => (x._1, createLabelArray(10, List( (x._3-1, 1)))) })
+ 									.groupBy({x=>x._1})
+									.reduce({(left,right)=>(left._1, left._2.zip(right._2).map(x=>x._1+x._2)) })
+
+  		val nodeFeatureDistributions_qjR = nodeFeatureDistributions
+  									.filter({x=> x._3 > x._1._2 })
+  									.map({ x => (x._1, createLabelArray(10, List( (x._3-1, 1)))) })
+ 									.groupBy({x=>x._1})
+									.reduce({(left,right)=>(left._1, left._2.zip(right._2).map(x=>x._1+x._2)) })
 
 		val nodeResults = nodesAndSamples
 			.groupBy { case (treeId, nodeId, sampleIndex, label, feature, count) => (treeId, nodeId)}
@@ -282,6 +328,12 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int) 
 			arr(i) = features.remove(random);
 		}
 		arr;
+	}
+	
+	def createLabelArray( labels : Integer, values : List[(Integer,Integer)])={
+	  val a = new Array[Int](10)
+	  values.foreach(f=>a(f._1)=f._2)
+	  a
 	}
 
 }
