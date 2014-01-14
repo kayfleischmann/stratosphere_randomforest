@@ -10,7 +10,7 @@ import java.io.FileWriter
 import java.io.BufferedInputStream
 import java.io.FileInputStream
 
-class RandomForestBuilder {  
+class RandomForestBuilder {
 	def getSampleCount(filename: String): Int = {
 		val src = io.Source.fromFile(filename)
 		try {
@@ -158,6 +158,7 @@ class RandomForestBuilder {
 			fw.write(System.getProperty("line.separator"))
 			fw.close()
 			new File(level_outputTreePath).delete()
+			//System.exit(0)
 
 		} while (nodeQueueSize > 0)
 

@@ -198,34 +198,35 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 							
 		val leftNodesWithBaggingTables = nodeWithBaggingTable
 							.filter({x=>x._4 <= x._7})		
-							.map({ case(treeId,nodeId, _, _, sampleIndex, _,_, _, count)=> 
-							  				(treeId,nodeId, (0 until count).toList.map(x=>sampleIndex).mkString(" ")) })
+							.map({ case(treeId,nodeId, featureIndex, _, sampleIndex, _,_, _, count)=> 
+							  				(treeId,nodeId, featureIndex, (0 until count).toList.map(x=>sampleIndex).mkString(" ")) })
 							.groupBy({x=>(x._1,x._2)})
-							.reduce({ (left,right)=> (left._1,left._2, left._3+" "+right._3) })
+							.reduce({ (left,right)=> (left._1,left._2, left._3,left._4+" "+right._4) })
 							.map({ x=> 
 							  	val treeId = x._1
 							  	val parentNodeId = x._2
 							  	val nodeId = ((parentNodeId + 1) * 2) - 1
+							  	val featureIndex = x._3
+							  	System.out.println( "left-bestsplit:"+x._4.split(" ").length )
 							  	
-							  	System.out.println( "left-bestsplit:"+x._3.split(" ").length )
 							  	
-							  	
-							  	(treeId,nodeId,-1/*featureId*/, 0.0 /*split*/, -1, x._3 /*baggingTable*/, "" /*featureList*/) 
+							  	(treeId,nodeId, featureIndex/*featureId*/, 0.0 /*split*/, -1, x._3 /*baggingTable*/, "" /*featureList*/) 
 							  })
 							
 		val rightNodesWithBaggingTables = nodeWithBaggingTable
 							.filter({x=>x._4 > x._7})		
-							.map({ case(treeId,nodeId, _, _, sampleIndex, _,_, _, count)=> 
-							  				(treeId,nodeId, (0 until count).toList.map(x=>sampleIndex).mkString(" ")) })
+							.map({ case(treeId,nodeId, featureIndex, _, sampleIndex, _,_, _, count)=> 
+							  				(treeId,nodeId, featureIndex, (0 until count).toList.map(x=>sampleIndex).mkString(" ")) })
 							.groupBy({x=>(x._1,x._2)})
-							.reduce({ (left,right)=> (left._1,left._2, left._3+" "+right._3) })
+							.reduce({ (left,right)=> (left._1,left._2, left._3,left._4+" "+right._4) })
 							.map({ x=> 
 							  	val treeId = x._1
 							  	val parentNodeId = x._2
 							  	val nodeId = ((parentNodeId + 1) * 2)
-							  	System.out.println( "right-bestsplit:"+x._3.split(" ").length )
+							  	val featureIndex = x._3
+							  	System.out.println( "right-bestsplit:"+x._4.split(" ").length )
 
-							  	(treeId,nodeId,- 1/*featureId*/, 0.0 /*split*/, -1, x._3 /*baggingTable*/, "" /*featureList*/) 
+							  	(treeId,nodeId, featureIndex/*featureId*/, 0.0 /*split*/, -1, x._3 /*baggingTable*/, "" /*featureList*/) 
 							  })
 		
 			
@@ -258,15 +259,16 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 											.where({ x => (x._1, x._2) })	/*join by treeId,nodeId */
 											.isEqualTo { y => (y._1, y._2) }
 											.map({ (nodeResult, nodeFeatures) => 
-												val selectedFeatureForNode = nodeResult._3.toInt
+												System.out.println(nodeResult)
+											    val selectedFeatureForNode = nodeResult._3.toInt
 												val features = nodeFeatures._3.split(" ").map({ _.toInt }).filter(x => x != selectedFeatureForNode)
 												val featureSpace = generateFeatureSubspace(featureSubspaceCount, features.toBuffer)
 								
 												(	nodeResult._1, 
 												    nodeResult._2, 
-												    nodeResult._3, 
-												    nodeResult._4, 
-												    nodeResult._5, 
+												    -1, 
+												    -1, 
+												    -1,
 												    nodeResult._6, 
 												    featureSpace.mkString(" "), 
 												    features.mkString(" "))
