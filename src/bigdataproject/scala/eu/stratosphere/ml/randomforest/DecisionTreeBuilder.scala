@@ -150,11 +150,6 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 									val bestLabelProbability = qj(bestLabel) / totalSamples.toDouble;
 									val quality = quality_function(tau, qj.map(_/totalSamples).toList, qjL.map(_/totalSamplesLeft).toList, qjR.map(_/totalSamplesRight).toList);			
 								    
-									System.out.println(totalSamples)
-									System.out.println(totalSamplesLeft)
-									System.out.println(totalSamplesRight)
-									
-									
 									(treeId,nodeId, (featureIndex,splitCandidate, quality, totalSamplesLeft, totalSamplesRight, bestLabel, bestLabelProbability) ) 
 								})
 								
@@ -168,7 +163,6 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 											
 		val final_OutputTreeNodes = bestSplit
 								.map({ x =>
-								  		System.out.println(x)
 									  	val treeId = x._1
 									  	val nodeId = x._2
 									  	val label = x._3._6.toInt
@@ -203,11 +197,11 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 							
 							
 		val leftNodesWithBaggingTables = nodeWithBaggingTable
-							.filter({x=>x._3 <= x._6})		
+							.filter({x=>x._4 <= x._7})		
 							.map({ case(treeId,nodeId, _, _, sampleIndex, _,_, _, count)=> 
 							  				(treeId,nodeId, (0 until count).toList.map(x=>sampleIndex).mkString(" ")) })
 							.groupBy({x=>(x._1,x._2)})
-							.reduce({ (left,right)=> (left._1,left._2, left._2+" "+right._2) })
+							.reduce({ (left,right)=> (left._1,left._2, left._3+" "+right._3) })
 							.map({ x=> 
 							  	val treeId = x._1
 							  	val parentNodeId = x._2
@@ -216,22 +210,22 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 							  	System.out.println( "left-bestsplit:"+x._3.split(" ").length )
 							  	
 							  	
-							  	(treeId,nodeId,-1/*featureId*/, 0.0 /*split*/, -1, x._2 /*baggingTable*/, "" /*featureList*/) 
+							  	(treeId,nodeId,-1/*featureId*/, 0.0 /*split*/, -1, x._3 /*baggingTable*/, "" /*featureList*/) 
 							  })
 							
 		val rightNodesWithBaggingTables = nodeWithBaggingTable
-							.filter({x=>x._3 > x._6})		
+							.filter({x=>x._4 > x._7})		
 							.map({ case(treeId,nodeId, _, _, sampleIndex, _,_, _, count)=> 
 							  				(treeId,nodeId, (0 until count).toList.map(x=>sampleIndex).mkString(" ")) })
 							.groupBy({x=>(x._1,x._2)})
-							.reduce({ (left,right)=> (left._1,left._2, left._2+" "+right._2) })
+							.reduce({ (left,right)=> (left._1,left._2, left._3+" "+right._3) })
 							.map({ x=> 
 							  	val treeId = x._1
 							  	val parentNodeId = x._2
 							  	val nodeId = ((parentNodeId + 1) * 2)
 							  	System.out.println( "right-bestsplit:"+x._3.split(" ").length )
 
-							  	(treeId,nodeId,- 1/*featureId*/, 0.0 /*split*/, -1, x._2 /*baggingTable*/, "" /*featureList*/) 
+							  	(treeId,nodeId,- 1/*featureId*/, 0.0 /*split*/, -1, x._3 /*baggingTable*/, "" /*featureList*/) 
 							  })
 		
 			
@@ -320,6 +314,8 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 
 	def isStoppingCriterion( x : (Int,Int, (Int/*featureIndex*/, Double /*splitCandidate*/, Double /*quality*/, Int /*totalSamplesLeft*/, Int /*totalSamplesRight*/,  Int /*bestLabel*/, Double /*bestLabelProbability*/ ) ) ) = {
 	  if( x._3._4 == 0 ||  x._3._5 == 0 || x._3._4 < minNrOfItems || x._3._5 < minNrOfItems  ){
+	    System.out.println("dammm")
+	    System.out.println(x)
 	    true
 	  }
 	  else
