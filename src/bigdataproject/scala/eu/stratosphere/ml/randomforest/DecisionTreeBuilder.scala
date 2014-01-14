@@ -152,9 +152,10 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 		  						.filter({ x=>isStoppingCriterion(x) })
 								.map({ x =>
 									  	val values = x._1.split("_")
-									  	val treeId = values(0)
-									  	val nodeId = values(1)
-									  	val label = x._2._6
+									  	val treeId = values(0).toInt
+									  	val nodeId = values(1).toInt
+									  	val label = x._2._6.toInt
+									  	System.out.println("ohh shit");
 								  		(treeId, nodeId, -1/*featureId*/, 0.0 /*split*/, label, ""/*baggingTable*/, "" /*featureList*/) 
 									})
 								
@@ -245,7 +246,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 											.where({ x => (x._1, x._2) })	/*join by treeId,nodeId */
 											.isEqualTo { y => (y._1, y._2) }
 											.map({ (nodeResult, nodeFeatures) =>
-												val selectedFeatureForNode = nodeResult._7.toInt
+												val selectedFeatureForNode = nodeResult._3.toInt
 												val features = nodeFeatures._3.split(" ").map({ _.toInt }).filter(x => x != selectedFeatureForNode)
 												val featureSpace = generateFeatureSubspace(featureSubspaceCount, features.toBuffer)
 								
@@ -262,6 +263,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 		// output nodes to build if 
 		val nodeQueueSink = nodeResultsWithFeatures
 						.write(outputNodeQueuePath, CsvOutputFormat(newLine, ","))
+						
 		new ScalaPlan(Seq(finaTreeNodesSink, nodeQueueSink))
 
 											
@@ -352,8 +354,9 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 	}
 
 	def isStoppingCriterion( x : (String, (Int/*featureIndex*/, Double /*splitCandidate*/, Double /*quality*/, Int /*totalSamplesLeft*/, Int /*totalSamplesRight*/,  Int /*bestLabel*/, Double /*bestLabelProbability*/ ) ) ) = {
-	  if( x._2._5 == 0 ||  x._2._6 == 0 || x._2._5 < minNrOfItems || x._2._6 < minNrOfItems  )
-		  true
+	  if( x._2._4 == 0 ||  x._2._5 == 0 || x._2._4 < minNrOfItems || x._2._5 < minNrOfItems  ){
+	    true
+	  }
 	  else
 		  false
 	}
