@@ -196,7 +196,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 							.map({ case(treeIdnodeId, _, _, sampleIndex, _,_, _, count)=> 
 							  				(treeIdnodeId, (0 until count).toList.map(x=>sampleIndex).mkString(" ")) })
 							.groupBy(_._1)
-							.reduce({ (left,right)=> (left._1, left._2.split(" ").++(right._2.split(" ")).mkString(" ")) })
+							.reduce({ (left,right)=> (left._1, left._2+" "+right._2) })
 							.map({ x=> 
 							  	val values = x._1.split("_")
 							  	val treeId = values(0).toInt
@@ -210,7 +210,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 							.map({ case(treeIdnodeId, _, _, sampleIndex, _,_, _, count)=> 
 							  				(treeIdnodeId, (0 until count).toList.map(x=>sampleIndex).mkString(" ")) })
 							.groupBy(_._1)
-							.reduce({ (left,right)=> (left._1, left._2.split(" ").++(right._2.split(" ")).mkString(" ")) })
+							.reduce({ (left,right)=> (left._1, left._2+" "+right._2) })							
 							.map({ x=> 
 							  	val values = x._1.split("_")
 							  	val treeId = values(0).toInt
@@ -242,7 +242,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 
 		// filter nodes to build, join the last featureList from node and remove :q
 		val nodeResultsWithFeatures =  rightNodesWithBaggingTables
-											//.union(leftNodesWithBaggingTables)
+											.union(leftNodesWithBaggingTables)
 											.join(nodeFeatures)
 											.where({ x => (x._1, x._2) })	/*join by treeId,nodeId */
 											.isEqualTo { y => (y._1, y._2) }
@@ -260,22 +260,11 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 												    featureSpace.mkString(" "), 
 												    features.mkString(" "))
 											})
-		
-		// output nodes to build if 
+						// output nodes to build if 
 		val nodeQueueSink = nodeResultsWithFeatures
 						.write(outputNodeQueuePath, CsvOutputFormat(newLine, ","))
 						
 		new ScalaPlan(Seq(finaTreeNodesSink, nodeQueueSink))
-		
-											
-		/*
-		//val sink1 = nodeFeatureDistributions_qj.write("/home/kay/rf_probs_qj", CsvOutputFormat(newLine, ","))
-		//val sink2 = nodeFeatureDistributions_qjL.write("/home/kay/rf_probs_qjL", CsvOutputFormat(newLine, ","))
-		//val sink3 = nodeFeatureDistributions_qjR.write("/home/kay/rf_probs_qjR", CsvOutputFormat(newLine, ","))
-		val sink4 = leftNodesWithBaggingTables.write("/home/kay/rf_probs_node_left", CsvOutputFormat(newLine, ","))
-
-		new ScalaPlan(Seq(sink4))
-		*/
 	}
 	// INPUT
 	// List[(Int,Array[(Int,Double)])] => sampleList with featureIndex and value 
@@ -356,8 +345,6 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 
 	def isStoppingCriterion( x : (String, (Int/*featureIndex*/, Double /*splitCandidate*/, Double /*quality*/, Int /*totalSamplesLeft*/, Int /*totalSamplesRight*/,  Int /*bestLabel*/, Double /*bestLabelProbability*/ ) ) ) = {
 	  if( x._2._4 == 0 ||  x._2._5 == 0 || x._2._4 < minNrOfItems || x._2._5 < minNrOfItems  ){
-	    System.out.println("stop");
-	    System.out.println(x)
 	    true
 	  }
 	  else

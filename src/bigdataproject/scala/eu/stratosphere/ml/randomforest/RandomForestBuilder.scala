@@ -158,7 +158,6 @@ class RandomForestBuilder {
 			fw.write(System.getProperty("line.separator"))
 			fw.close()
 			new File(level_outputTreePath).delete()
-			System.exit(0)
 
 		} while (nodeQueueSize > 0)
 
