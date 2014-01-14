@@ -156,20 +156,22 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 											(left._1 /*treeId_nodeId*/,  bestSplit ) /* treeIdnodeId,(featureIndex,splitCandidate,quality, totalSamplesLeft, totalSamplesRight, bestLabel, bestLabelProbability)*/
 											})	
 											
-		val finalTreeNodes = bestSplit
-		  						.filter({ x=>isStoppingCriterion(x) })
+		val final_OutputTreeNodes = bestSplit
 								.map({ x =>
 									  	val values = x._1.split("_")
 									  	val treeId = values(0).toInt
 									  	val nodeId = values(1).toInt
 									  	val label = x._2._6.toInt
-								  		(treeId, nodeId, -1/*featureId*/, 0.0 /*split*/, label, ""/*baggingTable*/, "" /*featureList*/) 
+								  		if(isStoppingCriterion(x))
+								  			(treeId, nodeId, -1/*featureId*/, 0.0 /*split*/, label, ""/*baggingTable*/, "" /*featureList*/) 
+								  		else
+								  			(treeId, nodeId, x._2._1.toInt/*featureId*/, x._2._2.toDouble/*split*/, -1, ""/*baggingTable*/, "" /*featureList*/) 
+								  		  
 									})
 								
 								
 		val nodestobuild = bestSplit.filter({ z  => ! isStoppingCriterion(z) })
 		  						
-
 		  						
 		// compute new nodes to build
 		val nodeWithBaggingTable = nodestobuild
@@ -224,7 +226,9 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 
 		
 		// output to tree file if featureIndex != -1 (node) or leaf (label detected)  
-		val finaTreeNodesSink = finalTreeNodes.write(outputTreePath, CsvOutputFormat(newLine, ","))
+		val finaTreeNodesSink = final_OutputTreeNodes
+									.write(outputTreePath, CsvOutputFormat(newLine, ","))
+		
 		
 		// prepare the treeId,nodeId and featureList for next round
 		// map to new potential nodeIds
@@ -266,49 +270,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 						
 		new ScalaPlan(Seq(finaTreeNodesSink, nodeQueueSink))
 	}
-	// INPUT
-	// List[(Int,Array[(Int,Double)])] => sampleList with featureIndex and value 
-	//							  List( (label, List(s1f1,s1f2,s1f3,..s1fN)), ... )
-	// Int => feature
-	// Double => split candidate
-	// Histogram histogram distribution
-	// OUTPUT
-	// (feature,candidate,quality)
 
-	def split_quality(sampleList: List[(Int, Int, Array[(Int, Double)])],
-		feature: Int,
-		candidate: Double,
-		h: Histogram,
-		totalSamples: Int) = {
-
-		// filter feature from all samples
-		val featureList = sampleList
-			.map({ case (label, sampleIndex, sample) => (label, sample.filter(x => x._1 == feature).head) })
-
-		// probability for each label occurrence in the node
-		val qj = featureList
-			.groupBy(_._1) /*group by label */
-			.map(x => (x._2.length.toDouble / totalSamples))
-
-		//System.out.println("feature:"+feature+"    candidate:"+candidate+"    "+h.uniform(10)+"     histogram:"+h.toString)
-
-		// compute probability distribution for each child (Left,Right) and the current candidate with the specific label
-		val qLj = featureList
-			.filter({ case (label, sample) => sample._2 <= candidate })
-			.groupBy(_._1) /*group by label */
-			.map(x => (x._2.length.toDouble / totalSamples))
-
-		val qRj = featureList
-			.filter({ case (label, sample) => sample._2 > candidate })
-			.groupBy(_._1) /*group by label */
-			.map(x => (x._2.length.toDouble / totalSamples))
-
-		// TODO: quality_function do not use the qj List, instead use the qLj list two times
-		val tau = 0.5
-		val quality = quality_function(tau, qj.toList, qLj.toList, qRj.toList);
-
-		(feature, candidate, quality)
-	}
 
 	def impurity(q: List[Double]) = {
 		gini(q)
