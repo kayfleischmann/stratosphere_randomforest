@@ -109,7 +109,7 @@ class RandomForestBuilder {
 		System.out.println("write initial nodequeue to build");
 
 		// write the initial nodes to file to join in the iteration
-		writeNodes(nodesQueue, inputNodeQueuePath);
+		//writeNodes(nodesQueue, inputNodeQueuePath);
 
 		// if next level, read from file which node has to be split
 		// each line treeId,nodeId, featuresIndicies, baggingTable
@@ -131,7 +131,7 @@ class RandomForestBuilder {
 		val level_outputTreePath = outputTreePath + "CurrentLevel"
 
 		do {
-			val plan = new DecisionTreeBuilder(70, featureSubspaceCount, 10 ).getPlan(
+			val plan = new DecisionTreeBuilder(70, featureSubspaceCount, 10, level ).getPlan(
 				new File(inputPath).toURI().toString(),
 				new File(inputNodeQueuePath).toURI().toString(),
 				new File(outputNodeQueuePath).toURI().toString(),
@@ -139,12 +139,13 @@ class RandomForestBuilder {
 				numTrees.toString)
 			val runtime = ex.executePlan(plan)
 			println("runtime: " + runtime)
+			ex.stop();
 
 			// delete old input node queue
-			new File(inputNodeQueuePath).delete()
+			//new File(inputNodeQueuePath).delete()
 
 			// change output nodequeue to input queue
-			new File(outputNodeQueuePath).renameTo(new File(inputNodeQueuePath))
+			//new File(outputNodeQueuePath).renameTo(new File(inputNodeQueuePath))
 
 			// check how many nodes to build
 			nodeQueueSize = Source.fromFile(inputNodeQueuePath).getLines().length
@@ -158,11 +159,11 @@ class RandomForestBuilder {
 			fw.write(System.getProperty("line.separator"))
 			fw.close()
 			new File(level_outputTreePath).delete()
-			//System.exit(0)
+			
+			System.exit(0)
 
 		} while (nodeQueueSize > 0)
 
-		ex.stop();
 
 		// stop measuring time
 		val t1 = System.currentTimeMillis

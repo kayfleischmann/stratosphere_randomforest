@@ -51,6 +51,9 @@ class DecisionTreeEvaluator() extends PlanAssembler with PlanAssemblerDescriptio
 	      var labelVote = -1;
 	      do
 	      {
+	         System.out.println(values.zipWithIndex.toList);
+	         System.out.println(currentNodeIndex);
+	         System.out.println(nodes.toList);
 			  val currentNode = nodes.find(_.nodeId == currentNodeIndex).orNull
 			  labelVote = currentNode.label
 			  
