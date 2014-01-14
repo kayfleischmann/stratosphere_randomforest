@@ -210,7 +210,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 							  	System.out.println( "left-bestsplit:"+x._4.split(" ").length )
 							  	
 							  	
-							  	(treeId,nodeId, featureIndex/*featureId*/, 0.0 /*split*/, -1, x._3 /*baggingTable*/, "" /*featureList*/) 
+							  	(treeId,nodeId, featureIndex/*featureId*/, 0.0 /*split*/, -1, x._4 /*baggingTable*/, "" /*featureList*/) 
 							  })
 							
 		val rightNodesWithBaggingTables = nodeWithBaggingTable
@@ -226,7 +226,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 							  	val featureIndex = x._3
 							  	System.out.println( "right-bestsplit:"+x._4.split(" ").length )
 
-							  	(treeId,nodeId, featureIndex/*featureId*/, 0.0 /*split*/, -1, x._3 /*baggingTable*/, "" /*featureList*/) 
+							  	(treeId,nodeId, featureIndex/*featureId*/, 0.0 /*split*/, -1, x._4 /*baggingTable*/, "" /*featureList*/) 
 							  })
 		
 			
