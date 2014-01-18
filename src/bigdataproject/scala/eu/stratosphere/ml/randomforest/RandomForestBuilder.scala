@@ -1,7 +1,14 @@
 package bigdataproject.scala.eu.stratosphere.ml.randomforest
 
+import eu.stratosphere.client.LocalExecutor
+import eu.stratosphere.api.common.Plan
+import eu.stratosphere.api.common.Program
+import eu.stratosphere.api.common.ProgramDescription
+import eu.stratosphere.api.scala._
+import eu.stratosphere.api.scala.operators._
+
+
 import scala.util.Random
-import eu.stratosphere.pact.client.LocalExecutor
 import java.util.ArrayList
 import java.io.File
 import scala.io.Source
@@ -109,7 +116,7 @@ class RandomForestBuilder {
 		System.out.println("write initial nodequeue to build");
 
 		// write the initial nodes to file to join in the iteration
-		//writeNodes(nodesQueue, inputNodeQueuePath);
+		writeNodes(nodesQueue, inputNodeQueuePath);
 
 		// if next level, read from file which node has to be split
 		// each line treeId,nodeId, featuresIndicies, baggingTable
@@ -142,10 +149,10 @@ class RandomForestBuilder {
 			ex.stop();
 
 			// delete old input node queue
-			//new File(inputNodeQueuePath).delete()
+			new File(inputNodeQueuePath).delete()
 
 			// change output nodequeue to input queue
-			//new File(outputNodeQueuePath).renameTo(new File(inputNodeQueuePath))
+			new File(outputNodeQueuePath).renameTo(new File(inputNodeQueuePath))
 
 			// check how many nodes to build
 			nodeQueueSize = Source.fromFile(inputNodeQueuePath).getLines().length

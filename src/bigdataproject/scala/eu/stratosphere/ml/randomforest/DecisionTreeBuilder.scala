@@ -1,15 +1,18 @@
 package bigdataproject.scala.eu.stratosphere.ml.randomforest
 
-import eu.stratosphere.pact.common.plan.PlanAssembler
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
-import eu.stratosphere.scala._
-import eu.stratosphere.scala.operators._
+import eu.stratosphere.client.LocalExecutor
+import eu.stratosphere.api.common.Plan
+import eu.stratosphere.api.common.Program
+import eu.stratosphere.api.common.ProgramDescription
+import eu.stratosphere.api.scala._
+import eu.stratosphere.api.scala.operators._
+
 import scala.util.matching.Regex
-import eu.stratosphere.pact.client.LocalExecutor
 import util.Random
 import scala.collection.mutable.Buffer
 
-class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, var numClasses : Int, var treeLevel : Int ) extends PlanAssembler with PlanAssemblerDescription with Serializable {
+
+class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, var numClasses : Int, var treeLevel : Int ) extends Program with ProgramDescription with Serializable {
 
 	override def getDescription() = {
 		"Usage: [inputPath] [outputPath] ([number_trees])"
@@ -25,6 +28,10 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 		val trainingSet = TextFile(inputPath)
 		val inputNodeQueue = TextFile(inputNodeQueuePath)
 
+		val newLine = System.getProperty("line.separator");
+
+		
+
 		val nodequeue = inputNodeQueue map { line =>
 			val values = line.split(",")
 			val treeId = values(0).toInt
@@ -34,7 +41,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 			val label = values(4)
 			val baggingTable = values(5)
 			val featureSpace = values(6)
-			System.out.println((treeId, nodeId, baggingTable.length, featureSpace.length))
+			System.out.println((treeId, nodeId, baggingTable.split(" ").length, featureSpace.split(" ").length))
 			(treeId, nodeId, baggingTable, featureSpace)
 		}
 
@@ -45,7 +52,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 			val features = values.tail.tail
 			(sampleIndex, label, features.map(_.toDouble))
 		}
-		
+
 		val nodesAndSamples = nodequeue.flatMap { case(treeId,nodeId,baggingTable,featureSpace) =>
 				baggingTable
 					.split(" ")
@@ -70,22 +77,26 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 		val nodeSampleFeatures  = nodesAndSamples
 				.flatMap  { case(treeId,nodeId,sampleIndex,label,features,count) =>
 					features.map({ case(featureValue,featureIndex) => 
-					  	( treeId,nodeId,featureIndex, sampleIndex, label, featureValue, count )})
+					  	( treeId,nodeId, featureIndex, sampleIndex, label, featureValue, count )})
 				}
 										
 		val nodeSampleFeatureHistograms = nodeSampleFeatures
 							.map({ case ( treeId,nodeId,featureIndex,sampleIndex,label,featureValue, count) => 
-										( treeId,nodeId,featureIndex,new Histogram(featureIndex, 10).update(featureValue,count).toString ) })
+										( treeId,nodeId,featureIndex,new Histogram(featureIndex, 10).update(featureValue,count) ) })
 
 		val  nodeHistograms = nodeSampleFeatureHistograms
 							.groupBy({ x => (x._1,x._2,x._3)})
-							.reduce( {(left,right) => (left._1, left._2, left._3, Histogram.fromString(left._4).merge(Histogram.fromString(right._4)).toString ) } )
+							.reduce( {(left,right) => (left._1, left._2, left._3, left._4.merge(right._4)) } )
 						
+		val nodestoBuildFeatures = nodequeue
+										.flatMap({ case(treeId,nodeId,baggingTable,featureSpace) => 
+										  			featureSpace.split(" ").map({ feature=> 
+										  			  		(treeId, nodeId, feature.toInt ) }) })
 		
 									
 		val nodeFeatureDistributions = nodeHistograms
 									.flatMap( { nodeHistogram => 
-												val Histogram.fromString(nodeHistogram._4).uniform(10)
+											nodeHistogram._4.uniform(10)
 															.map({ splitCandidate => 
 															  		( 	nodeHistogram._1, /*treeId */
 															  			nodeHistogram._2, /*nodeId*/
@@ -107,17 +118,14 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 									  		nodeSampleFeature._7 /*sampleCount*/  )
 									})
 									
-		val nodeSampleFeatureHistogramsTest= nodeHistograms
-									.map( { nodeHistogram => 
-													( nodeHistogram._1, nodeHistogram._2, Histogram.fromString(nodeHistogram._4).uniform(10).toList.toString )
-									})
-		
+
+		// compute node distributions in a distributed fashion
 									
-  		val nodeFeatureDistributions_qj = nodeFeatureDistributions
-  									.map({ x => (x._1, x._2, x._3, x._4, createLabelArray(numClasses, List( (x._7/*label*/, x._8 /*count*/ )))) })
- 									.groupBy({x=>(x._1,x._2,x._3,x._4)})
-									.reduce({(left,right)=>(left._1,left._2,left._3,  left._4, left._5.zip(right._5).map(x=>x._1+x._2)) })
-									.map({ x => (x._1, x._2, x._3, x._4, x._5.toList.mkString(" ") ) })
+		val nodeFeatureDistributions_qj = nodeSampleFeatures
+  									.map({ x => (x._1, x._2, x._3, createLabelArray(numClasses, List( (x._5/*label*/, x._7 /*count*/ )))) })  									
+ 									.groupBy({x=>(x._1,x._2,x._3)})
+									.reduce({(left,right)=>(left._1,left._2,left._3, left._4.zip(right._4).map(x=>x._1+x._2)) })
+									.map({ x => (x._1, x._2, x._3, x._4.toList.mkString(" ") ) })
 
   		val nodeFeatureDistributions_qjL = nodeFeatureDistributions
   									.filter({x=> x._6 <= x._4})
@@ -134,75 +142,62 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 									.reduce({(left,right)=>(left._1,left._2,left._3,left._4, left._5.zip(right._5).map(x=>x._1+x._2)) })
 									.map({ x => (x._1, x._2, x._3,x._4, x._5.toList.mkString(" ") ) })
 
-		val nodeDistributions2 = nodeFeatureDistributions_qj
-		  						.cogroup(nodeFeatureDistributions_qjL)
-								.where( { x => (x._1,x._2,x._3,x._4) })
-								.isEqualTo { x =>  (x._1,x._2,x._3,x._4) }
-								.map({ (INqj, INqjL) => 
-								  	val qj = INqj.toList.head
-								  	(qj._1, qj._2, qj._3, qj._4, qj, INqjL.find(x=>true).orNull ) 								  	
-								})
-
-								.cogroup(nodeFeatureDistributions_qjR)
-								.where( { x => (x._1,x._2,x._3,x._4) })
-								.isEqualTo { x =>  (x._1,x._2,x._3,x._4) }								
-								.map({ (INqjqjL, INqjR) => 
-								  	val qjqjL = INqjqjL.toList.head
-								  ( qjqjL._1, qjqjL._2, qjqjL._3, qjqjL._4, qjqjL._5, INqjR.find(x=>true).orNull) })
-							
-
-	val nodeDistributions = nodeFeatureDistributions_qj
-		  						.join(nodeFeatureDistributions_qjL)	
-								.where( { x => (x._1,x._2,x._3,x._4) })
-								.isEqualTo { x =>  (x._1,x._2,x._3,x._4) }
 									
-								.map({ (qj, qjL) => (	qj._1, /*treeId*/
-														qj._2, /*nodeId*/
-														qj._3, /*featureId*/
-														qj._4, /*splitCandidate*/
-														qj._5, /*histogram qj*/
-														qjL._5 /*histogram qjL */
-														) })
-		  						.join(nodeFeatureDistributions_qjR)	
-								.where( { x =>  (x._1,x._2,x._3,x._4)  })
-								.isEqualTo { x => (x._1,x._2,x._3,x._4)  }	
+		// join all nodes in the queue with the corresponding tree-node-feature distributions
+		// compute split qualities
+		val nodeDistributions =nodeFeatureDistributions_qj 
+		  						.cogroup(nodeFeatureDistributions_qjL)
+								.where( { x => (x._1,x._2, x._3) })
+								.isEqualTo { x =>  (x._1,x._2, x._3)}
+								.flatMap({ (qj, qjL) => 
+								      var node1 = qj.next
+									  var empty_node : (Int,Int,Int,Double,String) =  (0, 0, 0, 0.0, "null")
+									  if( qjL.hasNext ){
+									    qjL.map({ node  =>
+									      	(node1._1, node1._2, node1._3, node._4,  node1,  node )
+									      })
+									  }
+									  else
+										List( (node1._1, node1._2, node1._3, -1.0,  node1, empty_node ) )
+									})	
+		  						.cogroup(nodeFeatureDistributions_qjR)
+								.where( { x => (x._1,x._2, x._3, x._4) })
+								.isEqualTo { x =>  (x._1,x._2, x._3, x._4)}
 								.map({ (qjqjL, qjR) => 
-								    val treeId = qjqjL._1
-								    val nodeId = qjqjL._2
-								    val featureIndex = qjqjL._3
-								    val splitCandidate = qjqjL._4
+								  var node12 = qjqjL.next
+								  var node3 : (Int,Int,Int,Double,String) = (0, 0, 0, 0.0, "null")
+								  if( qjR.hasNext )
+								     node3 = qjR.next
+								  (node12._1, node12._2, node12._3, node12._4,  node12._5, node12._6, node3 )
+								})
+								.map({ case (treeId,nodeId,featureIndex,splitCandidate, qj, qjL, qjR ) =>
+								  
+									var p_qj = qj._4.split(" ").map(_.toDouble )
+									var p_qjL = Array[Double]()
+									var p_qjR = Array[Double]()
+
+									if(qjL._5!="null")
+										p_qjL = qjL._5.split(" ").map(_.toDouble)
+									if(qjR._5!="null")
+										p_qjR = qjR._5.split(" ").map(_.toDouble)
+									
 									val tau = 0.5
 									
-									val p_qj = qjqjL._5.split(" ").map(_.toDouble )
-									val p_qjL = qjqjL._6.split(" ").map(_.toDouble)
-									val p_qjR = qjR._5.split(" ").map(_.toDouble)
-
 									val totalSamples = p_qj.sum.toInt
 									val totalSamplesLeft = p_qjL.sum.toInt
 									val totalSamplesRight = p_qjR.sum.toInt
 									val bestLabel = p_qj.zipWithIndex.maxBy(_._1)._2
 									val bestLabelProbability = p_qj(bestLabel) / totalSamples.toDouble;
+									
 									var quality = quality_function( tau, 
 																	p_qj.map( _ /totalSamples).toList, 
 																	p_qjL.map( _ /totalSamples).toList, 
-																	p_qjR.map(_/totalSamples).toList);			
-								    
-									//quality = Math.round(quality*100.0)/100.0;
-									System.out.println("-----------")
-									System.out.println(treeId);
-									System.out.println(nodeId);
-									System.out.println();
-									System.out.println(splitCandidate);
-									System.out.println(quality);
-									System.out.println(totalSamplesLeft);
-									System.out.println(totalSamplesRight);
-									System.out.println(p_qj.toList);
-									System.out.println(p_qjL.toList);
-									System.out.println(p_qjR.toList);
+																	p_qjR.map(_/totalSamples).toList);											
 									
-									(treeId,nodeId, (featureIndex,splitCandidate, quality, totalSamplesLeft, totalSamplesRight, bestLabel, bestLabelProbability) ) 
-								})
+									(treeId,nodeId,(featureIndex,splitCandidate, quality, totalSamplesLeft, totalSamplesRight, bestLabel, bestLabelProbability) ) 									
+								});
 								
+		// compute the best split for each tree-node
 		val bestSplit = nodeDistributions
 								// group by treeIdnodeIdFeatureIndex and compute the max (best quality)
 								.groupBy({x=>(x._1, x._2)})
@@ -210,10 +205,12 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 								  			val bestSplit = if(left._3._3>right._3._3) left._3 else right._3 
 								  				( left._1, left._2 /*treeId_nodeId*/,  bestSplit ) /* treeIdnodeId,(featureIndex,splitCandidate,quality, totalSamplesLeft, totalSamplesRight, bestLabel, bestLabelProbability)*/
 											})	
-								
+											
+		// decide whether the split is a good or a bad one, by evaluating the stopping criterion
+		// good ones go into the next level
+	    // bad ones are final nodes (leaves) with a label
 		val final_OutputTreeNodes = bestSplit
 								.map({ x =>
-								  
 									  	val treeId = x._1
 									  	val nodeId = x._2
 									  	val label = x._3._6.toInt
@@ -224,10 +221,9 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 								  			(treeId, nodeId, -1/*featureId*/, 0.0 /*split*/, label, ""/*baggingTable*/, "" /*featureList*/) 
 								  		else
 								  			(treeId, nodeId, x._3._1.toInt/*featureId*/, x._3._2.toDouble/*split*/, -1, ""/*baggingTable*/, "" /*featureList*/) 
-								  		  
 									})
 								
-								
+		/*						
 		val nodestobuild = bestSplit.filter({ z  => ! isStoppingCriterion(z) })
 		  						
 		  						
@@ -282,9 +278,6 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 							  })
 		
 			
-		val newLine = System.getProperty("line.separator");
-
-		
 		// output to tree file if featureIndex != -1 (node) or leaf (label detected)  
 		val finaTreeNodesSink = final_OutputTreeNodes
 									.write(outputTreePath, CsvOutputFormat(newLine, ","))
@@ -314,12 +307,6 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 											    val selectedFeatureForNode = nodeResult._3.toInt
 												val features = nodeFeatures._3.split(" ").map({ _.toInt }).filter(x => x != selectedFeatureForNode)
 												val featureSpace = generateFeatureSubspace(featureSubspaceCount, features.toBuffer)
-								
-												System.out.println( 		(	nodeResult._1, 
-																		    nodeResult._2, 
-																		    -1, 
-																		    -1 ) )
-
 												
 												(	nodeResult._1, 
 												    nodeResult._2, 
@@ -330,40 +317,21 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 												    featureSpace.mkString(" "), 
 												    features.mkString(" "))
 											})
-
+								
 		// output to tree file if featureIndex != -1 (node) or leaf (label detected)  
-		val treeLevelSink = nodeResultsWithFeatures
-									.write(outputTreePath+"_level"+treeLevel, CsvOutputFormat(newLine, ","))
+		val treeLevelSink = final_OutputTreeNodes
+									.write(outputTreePath, CsvOutputFormat(newLine, ","))
 									
 		// output nodes to build if 
 		val nodeQueueSink = nodeResultsWithFeatures
 						.write(outputNodeQueuePath, CsvOutputFormat(newLine, ","))
-		
-
-		val out4 = nodeSampleFeatureHistogramsTest.write("/home/kay/rf/nodeFeatureDistributions", CsvOutputFormat(newLine, ","))
-
-		
-		val out1 = nodeFeatureDistributions_qj.write("/home/kay/rf/qj", CsvOutputFormat(newLine, ","))
-		val out2 = nodeFeatureDistributions_qjL.write("/home/kay/rf/qjL", CsvOutputFormat(newLine, ","))
-		val out3 = nodeFeatureDistributions_qjR.write("/home/kay/rf/qjR", CsvOutputFormat(newLine, ","))
-
-		val joined = nodeDistributions2.write("/home/kay/rf/qj_qjL_qjR_grouped", CsvOutputFormat(newLine, ","))
-		
-		val bestSplitsSink = bestSplit.	write("/home/kay/rf/rf_bestsplits", CsvOutputFormat(newLine, ","))
-		new ScalaPlan(Seq(treeLevelSink, nodeQueueSink,out1,out2,out3, joined, out4))
+		new ScalaPlan(Seq(treeLevelSink,nodeQueueSink))
+		*/
+								
+		val output1 = final_OutputTreeNodes.write("/home/kay/rf/rf_bestsplit", CsvOutputFormat(newLine, ","))
+									
+		new ScalaPlan(Seq(output1))
 											
-
-		/*
-		val bestSplitsSink = bestSplit.	write("/home/kay/rf/rf_bestsplits", CsvOutputFormat(newLine, ","))
-		
-		val outnodeDistributions = nodeDistributions.	write("/home/kay/rf/rf_node_distributions", CsvOutputFormat(newLine, ","))
-		
-		val nodeSamplesFeaturesSink = nodeFeatureDistributions.write("/home/kay/rf/rf_nodesamples_features", CsvOutputFormat(newLine, ","))			
-		val nodeFeatureD = nodeFeatureDistributions.write("/home/kay/rf/rf_nodeFeatureD", CsvOutputFormat(newLine, ","))			
-		val nodeDqj = nodeFeatureDistributions_qj.write("/home/kay/rf/rf_nodeDqj", CsvOutputFormat(newLine, ","))			
-		val nodeDqjL = nodeFeatureDistributions_qjL.write("/home/kay/rf/rf_nodeDqjL", CsvOutputFormat(newLine, ","))			
-		val nodeDqjR = nodeFeatureDistributions_qjR.write("/home/kay/rf/rf_nodeDqjR", CsvOutputFormat(newLine, ","))			
-		new ScalaPlan(Seq(nodeDqj,nodeDqjL,nodeDqjR,nodeFeatureD,nodeSamplesFeaturesSink,bestSplitsSink,outnodeDistributions ))*/
 	}
 
 
