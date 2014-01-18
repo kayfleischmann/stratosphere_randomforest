@@ -138,7 +138,7 @@ class RandomForestBuilder {
 		val level_outputTreePath = outputTreePath + "CurrentLevel"
 
 		do {
-			val plan = new DecisionTreeBuilder(70, featureSubspaceCount, 10, level ).getPlan(
+			val plan = new DecisionTreeBuilder(70, featureSubspaceCount, 3, level ).getPlan(
 				new File(inputPath).toURI().toString(),
 				new File(inputNodeQueuePath).toURI().toString(),
 				new File(outputNodeQueuePath).toURI().toString(),
@@ -146,7 +146,6 @@ class RandomForestBuilder {
 				numTrees.toString)
 			val runtime = ex.executePlan(plan)
 			println("runtime: " + runtime)
-			ex.stop();
 
 			// delete old input node queue
 			new File(inputNodeQueuePath).delete()
@@ -167,8 +166,6 @@ class RandomForestBuilder {
 			fw.close()
 			new File(level_outputTreePath).delete()
 			
-			System.exit(0)
-
 		} while (nodeQueueSize > 0)
 
 

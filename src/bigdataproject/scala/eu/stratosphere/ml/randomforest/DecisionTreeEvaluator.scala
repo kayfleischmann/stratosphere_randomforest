@@ -54,9 +54,9 @@ class DecisionTreeEvaluator() extends Program with ProgramDescription with Seria
 	      var labelVote = -1;
 	      do
 	      {
-	         System.out.println(values.zipWithIndex.toList);
-	         System.out.println(currentNodeIndex);
-	         System.out.println(nodes.toList);
+	         //System.out.println(values.zipWithIndex.toList);
+	         //System.out.println(currentNodeIndex);
+	         //System.out.println(nodes.toList);
 			  val currentNode = nodes.find(_.nodeId == currentNodeIndex).orNull
 			  labelVote = currentNode.label
 			  
