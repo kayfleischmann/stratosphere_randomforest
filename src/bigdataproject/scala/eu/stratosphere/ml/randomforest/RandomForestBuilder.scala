@@ -1,7 +1,7 @@
 package bigdataproject.scala.eu.stratosphere.ml.randomforest
 
+import eu.stratosphere.client.LocalExecutor
 import scala.util.Random
-import eu.stratosphere.pact.client.LocalExecutor
 import java.util.ArrayList
 import java.io.File
 import scala.io.Source

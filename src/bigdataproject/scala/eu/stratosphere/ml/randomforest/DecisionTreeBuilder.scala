@@ -1,15 +1,16 @@
 package bigdataproject.scala.eu.stratosphere.ml.randomforest
 
-import eu.stratosphere.pact.common.plan.PlanAssembler
-import eu.stratosphere.pact.common.plan.PlanAssemblerDescription
-import eu.stratosphere.scala._
-import eu.stratosphere.scala.operators._
+import eu.stratosphere.client.LocalExecutor
+import eu.stratosphere.api.common.Plan
+import eu.stratosphere.api.common.Program
+import eu.stratosphere.api.common.ProgramDescription
+import eu.stratosphere.api.scala._
+import eu.stratosphere.api.scala.operators._
 import scala.util.matching.Regex
-import eu.stratosphere.pact.client.LocalExecutor
 import util.Random
 import scala.collection.mutable.Buffer
 
-class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int) extends PlanAssembler with PlanAssemblerDescription with Serializable {
+class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int) extends Program with ProgramDescription with Serializable {
 
 	override def getDescription() = {
 		"Usage: [inputPath] [outputPath] ([number_trees])"
