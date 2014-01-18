@@ -116,7 +116,7 @@ class RandomForestBuilder {
 		System.out.println("write initial nodequeue to build");
 
 		// write the initial nodes to file to join in the iteration
-		//writeNodes(nodesQueue, inputNodeQueuePath);
+		writeNodes(nodesQueue, inputNodeQueuePath);
 
 		// if next level, read from file which node has to be split
 		// each line treeId,nodeId, featuresIndicies, baggingTable
@@ -147,8 +147,6 @@ class RandomForestBuilder {
 			val runtime = ex.executePlan(plan)
 			println("runtime: " + runtime)
 			
-			System.exit(0)
-
 			// delete old input node queue
 			new File(inputNodeQueuePath).delete()
 

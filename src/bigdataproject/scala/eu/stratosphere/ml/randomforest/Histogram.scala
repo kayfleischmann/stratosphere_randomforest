@@ -36,8 +36,8 @@ case class Histogram(
       val uj = pi._1+(pi1._1 - pi._1)*z
       u += uj
      }
+     u.toList
     }
-    u.toList
   }
   
   def sum(b:Double) = {
