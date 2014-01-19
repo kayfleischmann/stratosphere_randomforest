@@ -138,7 +138,7 @@ class RandomForestBuilder {
 		val level_outputTreePath = outputTreePath + "CurrentLevel"
 
 		do {
-			val plan = new DecisionTreeBuilder(70, featureSubspaceCount, 3, level ).getPlan(
+			val plan = new DecisionTreeBuilder(70, featureSubspaceCount, 10, level ).getPlan(
 				new File(inputPath).toURI().toString(),
 				new File(inputNodeQueuePath).toURI().toString(),
 				new File(outputNodeQueuePath).toURI().toString(),

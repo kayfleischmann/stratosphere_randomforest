@@ -285,8 +285,6 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 							  	val parentNodeId = x._2
 							  	val nodeId = ((parentNodeId + 1) * 2)
 							  	val featureIndex = x._3
-							  	System.out.println( "left:"+ (treeId,nodeId, x._4.split(" ").length ) )
-							  	
 							  	(treeId,nodeId, featureIndex/*featureId*/, 0.0 /*split*/, -1, x._4 /*baggingTable*/, "" /*featureList*/) 
 							  })
 		
@@ -374,7 +372,6 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 
 	def isStoppingCriterion( x : (Int,Int, (Int/*featureIndex*/, Double /*splitCandidate*/, Double /*quality*/, Int /*totalSamplesLeft*/, Int /*totalSamplesRight*/,  Int /*bestLabel*/, Double /*bestLabelProbability*/ ) ) ) = {
 	  if( x._3._4 == 0 ||  x._3._5 == 0 || x._3._4 < minNrOfItems || x._3._5 < minNrOfItems  ){
-	    System.out.println("stop!");
 	    true
 	  }
 	  else
