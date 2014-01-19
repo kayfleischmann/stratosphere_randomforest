@@ -12,7 +12,7 @@ import util.Random
 import scala.collection.mutable.Buffer
 
 
-class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, var numClasses : Int, var treeLevel : Int ) extends Program with ProgramDescription with Serializable {
+class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, var numClasses : Int, var treeLevel : Int, var numHinstogramBuckets : Int = 10) extends Program with ProgramDescription with Serializable {
 
 	override def getDescription() = {
 		"Usage: [inputPath] [outputPath] ([number_trees])"
@@ -84,7 +84,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 										
 		val nodeSampleFeatureHistograms = nodeSampleFeatures
 							.map({ case ( treeId,nodeId,featureIndex,sampleIndex,label,featureValue, count) =>
-									( treeId,nodeId,featureIndex,new Histogram(featureIndex, 10).update(featureValue, count) ) 
+									( treeId,nodeId,featureIndex,new Histogram(featureIndex, numHinstogramBuckets).update(featureValue, count) ) 
 									})
 								
 
@@ -101,7 +101,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 									
 		val nodeFeatureDistributions = nodeHistograms
 									.flatMap( { nodeHistogram => 
-											nodeHistogram._4.uniform(10)
+											nodeHistogram._4.uniform(numHinstogramBuckets)
 															.map({ splitCandidate => 
 															  		( 	nodeHistogram._1, /*treeId */
 															  			nodeHistogram._2, /*nodeId*/
@@ -195,7 +195,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 									var quality = quality_function( tau, 
 																	p_qj.map( _ /totalSamples).toList, 
 																	p_qjL.map( _ /totalSamples).toList, 
-																	p_qjR.map(_/totalSamples).toList);
+																	p_qjR.map( _ /totalSamples).toList);
 									
 									(treeId,nodeId,(featureIndex,splitCandidate, quality, totalSamplesLeft, totalSamplesRight, bestLabel, bestLabelProbability) ) 									
 								});
@@ -271,8 +271,6 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 							  	val parentNodeId = x._2
 							  	val nodeId = ((parentNodeId + 1) * 2) - 1
 							  	val featureIndex = x._3
-							  	System.out.println( "left:"+ (treeId,nodeId, x._4.split(" ").length ) )
-							  	
 							  	(treeId,nodeId, featureIndex/*featureId*/, 0.0 /*split*/, -1, x._4 /*baggingTable*/, "" /*featureList*/) 
 							  })
 							
