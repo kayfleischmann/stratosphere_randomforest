@@ -1,8 +1,8 @@
 package bigdataproject.scala.eu.stratosphere.ml.randomforest
 import collection.mutable.HashMap
 case class TreeNode ( 
-	treeId : Int,
-	nodeId : Int,
+	treeId : Long,
+	nodeId : Long,
 	// bagging table
 	baggingTable :BaggingTable,
 		

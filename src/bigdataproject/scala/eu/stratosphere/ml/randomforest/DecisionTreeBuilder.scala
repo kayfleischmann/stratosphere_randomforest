@@ -30,12 +30,10 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 
 		val newLine = System.getProperty("line.separator");
 
-		
-
 		val nodequeue = inputNodeQueue map { line =>
 			val values = line.split(",")
-			val treeId = values(0).toInt
-			val nodeId = values(1).toInt
+			val treeId = values(0).toLong
+			val nodeId = values(1).toLong
 			val bestSplitIndex = values(2)
 			val bestSplitValue = values(3)
 			val label = values(4)
@@ -155,7 +153,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 								.isEqualTo { x =>  (x._1,x._2, x._3)}
 								.flatMap({ (qj, qjL) => 
 								      var node1 = qj.next
-									  var empty_node : (Int,Int,Int,Double,String) =  (0, 0, 0, 0.0, "null")
+									  var empty_node : (Long,Long,Int,Double,String) =  (0, 0, 0, 0.0, "null")
 									  if( qjL.hasNext ){
 									    qjL.map({ node  =>
 									      	(node1._1, node1._2, node1._3, node._4,  node1,  node )
@@ -169,7 +167,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 								.isEqualTo { x =>  (x._1,x._2, x._3, x._4)}
 								.map({ (qjqjL, qjR) => 
 								  var node12 = qjqjL.next
-								  var node3 : (Int,Int,Int,Double,String) = (0, 0, 0, 0.0, "null")
+								  var node3 : (Long,Long,Int,Double,String) = (0, 0, 0, 0.0, "null")
 								  if( qjR.hasNext )
 								     node3 = qjR.next
 								  (node12._1, node12._2, node12._3, node12._4,  node12._5, node12._6, node3 )
@@ -194,8 +192,8 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 									
 									var quality = quality_function( tau, 
 																	p_qj.map( _ /totalSamples).toList, 
-																	p_qjL.map( _ /totalSamples).toList, 
-																	p_qjR.map( _ /totalSamples).toList);
+																	p_qjL.map( _ /totalSamplesLeft).toList, 
+																	p_qjR.map( _ /totalSamplesRight).toList);
 									
 									(treeId,nodeId,(featureIndex,splitCandidate, quality, totalSamplesLeft, totalSamplesRight, bestLabel, bestLabelProbability) ) 									
 								});
@@ -267,9 +265,9 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 							.groupBy({x=>(x._1,x._2)})
 							.reduce({ (left,right)=> (left._1,left._2, left._3,left._4+" "+right._4) })
 							.map({ x=> 
-							  	val treeId = x._1
-							  	val parentNodeId = x._2
-							  	val nodeId = ((parentNodeId + 1) * 2) - 1
+							  	val treeId : Long = x._1
+							  	val parentNodeId  : Long = x._2
+							  	val nodeId : Long = ((parentNodeId + 1) * 2) - 1
 							  	val featureIndex = x._3
 							  	(treeId,nodeId, featureIndex/*featureId*/, 0.0 /*split*/, -1, x._4 /*baggingTable*/, "" /*featureList*/) 
 							  })
@@ -281,9 +279,9 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 							.groupBy({x=>(x._1,x._2)})
 							.reduce({ (left,right)=> (left._1,left._2, left._3,left._4+" "+right._4) })
 							.map({ x=> 
-							  	val treeId = x._1
-							  	val parentNodeId = x._2
-							  	val nodeId = ((parentNodeId + 1) * 2)
+							  	val treeId :Long = x._1
+							  	val parentNodeId: Long = x._2
+							  	val nodeId: Long  = ((parentNodeId + 1) * 2)
 							  	val featureIndex = x._3
 							  	(treeId,nodeId, featureIndex/*featureId*/, 0.0 /*split*/, -1, x._4 /*baggingTable*/, "" /*featureList*/) 
 							  })
@@ -297,12 +295,12 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 		// map to new potential nodeIds
 		val nodeFeatures = inputNodeQueue flatMap { line =>
 			val values = line.trim.split(",")
-			val treeId = values(0).toInt
-			val nodeId = values(1).toInt
+			val treeId = values(0).toLong
+			val nodeId = values(1).toLong
 			val features = values(7)
 
-			val leftNodeId = ((nodeId + 1) * 2) - 1
-			val rightNodeId = ((nodeId + 1) * 2)
+			val leftNodeId : Long = ((nodeId + 1) * 2) - 1
+			val rightNodeId : Long = ((nodeId + 1) * 2)
 
 			List((treeId, leftNodeId, features), (treeId, rightNodeId, features))
 		}
@@ -332,13 +330,17 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 									
 		// output nodes to build if 
 		val nodeQueueSink = nodeResultsWithFeatures .write(outputNodeQueuePath, CsvOutputFormat(newLine, ","))
-						
-		new ScalaPlan(Seq(treeLevelSink,nodeQueueSink ))
+		
+		// debug
+		val bestSplitSink = bestTreeNodeSplits .write("/home/kay/rf/rf_bestsplits_"+treeLevel, CsvOutputFormat(newLine, ","))
+		val nodeDistributionsSink = nodeDistributions.write("/home/kay/rf/rf_bestsplits_"+treeLevel, CsvOutputFormat(newLine, ","))
+		new ScalaPlan(Seq(treeLevelSink,nodeQueueSink,bestSplitSink,nodeDistributionsSink ))
 	}
 
 
 	def impurity(q: List[Double]) = {
 		gini(q)
+		//entropy(q)
 	}
 
 	def gini(q: List[Double]) = {
@@ -370,7 +372,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 	  a
 	}
 
-	def isStoppingCriterion( x : (Int,Int, (Int/*featureIndex*/, Double /*splitCandidate*/, Double /*quality*/, Int /*totalSamplesLeft*/, Int /*totalSamplesRight*/,  Int /*bestLabel*/, Double /*bestLabelProbability*/ ) ) ) = {
+	def isStoppingCriterion( x : (Long,Long, (Int/*featureIndex*/, Double /*splitCandidate*/, Double /*quality*/, Int /*totalSamplesLeft*/, Int /*totalSamplesRight*/,  Int /*bestLabel*/, Double /*bestLabelProbability*/ ) ) ) = {
 	  if( x._3._4 == 0 ||  x._3._5 == 0 || x._3._4 < minNrOfItems || x._3._5 < minNrOfItems  ){
 	    true
 	  }

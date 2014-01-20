@@ -6,8 +6,6 @@ import eu.stratosphere.api.common.Program
 import eu.stratosphere.api.common.ProgramDescription
 import eu.stratosphere.api.scala._
 import eu.stratosphere.api.scala.operators._
-
-
 import scala.util.Random
 import java.util.ArrayList
 import java.io.File
@@ -16,6 +14,7 @@ import scala.collection.mutable.Buffer
 import java.io.FileWriter
 import java.io.BufferedInputStream
 import java.io.FileInputStream
+import org.apache.log4j.Level
 
 class RandomForestBuilder {
 	def getSampleCount(filename: String): Int = {
@@ -69,6 +68,8 @@ class RandomForestBuilder {
 		val outputPath = new File(outputFile).toURI().toString()
 
 		val ex = new LocalExecutor()
+		LocalExecutor.setLoggingLevel(Level.ERROR)
+		
 		ex.start()
 		val plan = new DecisionTreeEvaluator().getPlan(inputPath, treePath, outputPath)
 		val runtime = ex.executePlan(plan)
@@ -96,7 +97,6 @@ class RandomForestBuilder {
 		// start measuring time
 		val t0 = System.currentTimeMillis
 
-		System.out.println("building random forest on stratosphere started");
 		var nodesQueue = Buffer[TreeNode]()
 		val totalFeatureCount = getFeatureCount(inputPath)
 		var featureSubspaceCount = Math.round(Math.log(totalFeatureCount).toFloat + 1);
@@ -113,20 +113,15 @@ class RandomForestBuilder {
 			nodesQueue += new TreeNode(treeId, 0, randomSamples, features, featureSubspace, -1, -1, -1)
 		} //for
 
-		System.out.println("write initial nodequeue to build");
-
 		// write the initial nodes to file to join in the iteration
 		writeNodes(nodesQueue, inputNodeQueuePath);
 
 		// if next level, read from file which node has to be split
 		// each line treeId,nodeId, featuresIndicies, baggingTable
 
-		println("Reading input from " + inputPath)
-		println("Writing node-queue output to " + outputNodeQueuePath)
-		println("Writing trees output to " + outputTreePath)
-
 		// generate plan with a distributed nodesQueue
 		val ex = new LocalExecutor()
+		LocalExecutor.setLoggingLevel(Level.ERROR)
 		ex.start()
 
 		var nodeQueueSize = 0
@@ -138,14 +133,13 @@ class RandomForestBuilder {
 		val level_outputTreePath = outputTreePath + "CurrentLevel"
 
 		do {
-			val plan = new DecisionTreeBuilder(70, featureSubspaceCount, 10, level ).getPlan(
+			val plan = new DecisionTreeBuilder(70, featureSubspaceCount, 25, level ).getPlan(
 				new File(inputPath).toURI().toString(),
 				new File(inputNodeQueuePath).toURI().toString(),
 				new File(outputNodeQueuePath).toURI().toString(),
 				new File(level_outputTreePath).toURI().toString(),
 				numTrees.toString)
 			val runtime = ex.executePlan(plan)
-			println("runtime: " + runtime)
 			
 			// delete old input node queue
 			new File(inputNodeQueuePath).delete()

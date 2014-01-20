@@ -43,14 +43,14 @@ class DecisionTreeEvaluator() extends Program with ProgramDescription with Seria
     			.map((line, tree) => {    				
 				 val nodes = tree.split(";").map(node => {
 				                val nodeData = node.split(",").map(_.trim())
-				                new TreeNode(nodeData(0).toInt, nodeData(1).toInt, null, null, null, nodeData(2).toInt, nodeData(3).toDouble, nodeData(4).toInt)
+				                new TreeNode(nodeData(0).toLong, nodeData(1).toLong, null, null, null, nodeData(2).toInt, nodeData(3).toDouble, nodeData(4).toInt)
 				              })				          
 		  val values = line.split(" ")
 		  val index = values.head.trim().toInt
 		  val label = values.tail.head.trim().toInt
 		  val features = values.tail.tail
 	      
-		  var currentNodeIndex = 0;
+		  var currentNodeIndex : Long = 0;
 	      var labelVote = -1;
 	      do
 	      {

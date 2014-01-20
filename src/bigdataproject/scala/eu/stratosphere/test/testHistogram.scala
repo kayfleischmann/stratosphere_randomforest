@@ -1,13 +1,31 @@
 package bigdataproject.scala.eu.stratosphere.test
 
 import bigdataproject.scala.eu.stratosphere.ml.randomforest.Histogram
+import scala.util.Random 
 
 object testHistogram {
  
   def main(args: Array[String]) { 
-    testHistogram_60k_failed
+    testHistogram_randomValues
   }
+
   
+   def testHistogram_randomValues = {
+	 val h = new Histogram(2,10)
+	 
+	 (0 until 20000).foreach({ x =>
+		 val max =Random.nextDouble * (Random.nextInt(60) - 30)
+		 System.out.println(max)
+		 h.update(max)
+	 })
+
+	 h.print
+     System.out.println( h.toString );
+     System.out.println( h.uniform(10) );
+     System.out.println( h.getNormalSum);
+
+  }
+
   
   def testHistogram_60k_failed = {
 	 val str="162;10;3.4508287104401825E-4 54980,0.11762102073598131 856,0.23971795550847458 590,0.3457754629629628 405,0.44886001275510207 392,0.5411847014925373 335,0.634043560606061 330,0.7468771462912088 364,0.867412109375 400,0.9826160283753709 1348"
