@@ -33,7 +33,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 		val nodequeue = inputNodeQueue map { line =>
 			val values = line.split(",")
 			val treeId = values(0).toLong
-			val nodeId = values(1).toLong
+			val nodeId = values(1)
 			val bestSplitIndex = values(2)
 			val bestSplitValue = values(3)
 			val label = values(4)
@@ -153,7 +153,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 								.isEqualTo { x =>  (x._1,x._2, x._3)}
 								.flatMap({ (qj, qjL) => 
 								      var node1 = qj.next
-									  var empty_node : (Long,Long,Int,Double,String) =  (0, 0, 0, 0.0, "null")
+									  var empty_node : (Long,String,Int,Double,String) =  (0, "0", 0, 0.0, "null")
 									  if( qjL.hasNext ){
 									    qjL.map({ node  =>
 									      	(node1._1, node1._2, node1._3, node._4,  node1,  node )
@@ -167,7 +167,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 								.isEqualTo { x =>  (x._1,x._2, x._3, x._4)}
 								.map({ (qjqjL, qjR) => 
 								  var node12 = qjqjL.next
-								  var node3 : (Long,Long,Int,Double,String) = (0, 0, 0, 0.0, "null")
+								  var node3 : (Long,String,Int,Double,String) = (0, "0", 0, 0.0, "null")
 								  if( qjR.hasNext )
 								     node3 = qjR.next
 								  (node12._1, node12._2, node12._3, node12._4,  node12._5, node12._6, node3 )
@@ -266,10 +266,10 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 							.reduce({ (left,right)=> (left._1,left._2, left._3,left._4+" "+right._4) })
 							.map({ x=> 
 							  	val treeId : Long = x._1
-							  	val parentNodeId  : Long = x._2
-							  	val nodeId : Long = ((parentNodeId + 1) * 2) - 1
+							  	val parentNodeId  : BigInt = BigInt(x._2)
+							  	val nodeId : BigInt = ((parentNodeId + 1) * 2) - 1
 							  	val featureIndex = x._3
-							  	(treeId,nodeId, featureIndex/*featureId*/, 0.0 /*split*/, -1, x._4 /*baggingTable*/, "" /*featureList*/) 
+							  	(treeId,nodeId.toString, featureIndex/*featureId*/, 0.0 /*split*/, -1, x._4 /*baggingTable*/, "" /*featureList*/) 
 							  })
 							
 		val rightNodesWithBaggingTables = nodeWithBaggingTable
@@ -280,10 +280,10 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 							.reduce({ (left,right)=> (left._1,left._2, left._3,left._4+" "+right._4) })
 							.map({ x=> 
 							  	val treeId :Long = x._1
-							  	val parentNodeId: Long = x._2
-							  	val nodeId: Long  = ((parentNodeId + 1) * 2)
+							  	val parentNodeId: BigInt = BigInt(x._2)
+							  	val nodeId: BigInt  = ((parentNodeId + 1) * 2)
 							  	val featureIndex = x._3
-							  	(treeId,nodeId, featureIndex/*featureId*/, 0.0 /*split*/, -1, x._4 /*baggingTable*/, "" /*featureList*/) 
+							  	(treeId,nodeId.toString, featureIndex/*featureId*/, 0.0 /*split*/, -1, x._4 /*baggingTable*/, "" /*featureList*/) 
 							  })
 		
 		// output to tree file if featureIndex != -1 (node) or leaf (label detected)  
@@ -296,13 +296,13 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 		val nodeFeatures = inputNodeQueue flatMap { line =>
 			val values = line.trim.split(",")
 			val treeId = values(0).toLong
-			val nodeId = values(1).toLong
+			val nodeId : BigInt = BigInt(values(1))
 			val features = values(7)
 
-			val leftNodeId : Long = ((nodeId + 1) * 2) - 1
-			val rightNodeId : Long = ((nodeId + 1) * 2)
+			val leftNodeId : BigInt = ((nodeId + 1) * 2) - 1
+			val rightNodeId : BigInt = ((nodeId + 1) * 2)
 
-			List((treeId, leftNodeId, features), (treeId, rightNodeId, features))
+			List((treeId, leftNodeId.toString, features), (treeId, rightNodeId.toString, features))
 		}
 
 		// filter nodes to build, join the last featureList from node and remove :q
@@ -375,7 +375,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 	  a
 	}
 
-	def isStoppingCriterion( x : (Long,Long, (Int/*featureIndex*/, Double /*splitCandidate*/, Double /*quality*/, Int /*totalSamplesLeft*/, Int /*totalSamplesRight*/,  Int /*bestLabel*/, Double /*bestLabelProbability*/ ) ) ) = {
+	def isStoppingCriterion( x : (Long, String, (Int/*featureIndex*/, Double /*splitCandidate*/, Double /*quality*/, Int /*totalSamplesLeft*/, Int /*totalSamplesRight*/,  Int /*bestLabel*/, Double /*bestLabelProbability*/ ) ) ) = {
 	  if( x._3._4 == 0 ||  x._3._5 == 0 || x._3._4 < minNrOfItems || x._3._5 < minNrOfItems  ){
 	    true
 	  }
