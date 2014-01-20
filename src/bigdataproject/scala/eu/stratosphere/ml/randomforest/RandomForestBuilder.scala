@@ -9,6 +9,7 @@ import scala.collection.mutable.Buffer
 import java.io.FileWriter
 import java.io.BufferedInputStream
 import java.io.FileInputStream
+import org.apache.log4j.Level
 
 class RandomForestBuilder {
 	def getSampleCount(filename: String): Int = {
@@ -62,6 +63,7 @@ class RandomForestBuilder {
 		val outputPath = new File(outputFile).toURI().toString()
 
 		val ex = new LocalExecutor()
+		LocalExecutor.setLoggingLevel(Level.ERROR)
 		ex.start()
 		val plan = new DecisionTreeEvaluator().getPlan(inputPath, treePath, outputPath)
 		val runtime = ex.executePlan(plan)
@@ -120,6 +122,7 @@ class RandomForestBuilder {
 
 		// generate plan with a distributed nodesQueue
 		val ex = new LocalExecutor()
+		LocalExecutor.setLoggingLevel(Level.ERROR)
 		ex.start()
 
 		var nodeQueueSize = 0
