@@ -324,7 +324,8 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 												    featureSpace.mkString(" "), 
 												    features.mkString(" "))
 											})
-								
+											
+											
 		// output to tree file if featureIndex != -1 (node) or leaf (label detected)  
 		val treeLevelSink = finalnodes .write(outputTreePath, CsvOutputFormat(newLine, ","))
 									
@@ -333,7 +334,9 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 		
 		// debug
 		val bestSplitSink = bestTreeNodeSplits .write("/home/kay/rf/rf_bestsplits_"+treeLevel, CsvOutputFormat(newLine, ","))
-		val nodeDistributionsSink = nodeDistributions.write("/home/kay/rf/rf_bestsplits_"+treeLevel, CsvOutputFormat(newLine, ","))
+		
+		val nodeDistributionsSink =  nodeDistributions .write("/home/kay/rf/rf_nodedistributions_"+treeLevel, CsvOutputFormat(newLine, ","))
+
 		new ScalaPlan(Seq(treeLevelSink,nodeQueueSink,bestSplitSink,nodeDistributionsSink ))
 	}
 

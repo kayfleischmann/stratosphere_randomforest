@@ -13,7 +13,7 @@ object testRandomForestOnStratosphere {
 	    "/home/kay/rf/rf_input_nodequeue",
 	    "/home/kay/rf/rf_output",
 	    "/home/kay/rf/rf_output_tree",
-	    10
+	    5
 	    )
   }
  
