@@ -3,8 +3,6 @@ import collection.mutable.HashMap
 case class TreeNode ( 
 	treeId : Int,
 	nodeId : Int,
-	// bagging table
-	baggingTable :BaggingTable,
 		
 	// list of features total available for this level
 	val features : Array[Int],

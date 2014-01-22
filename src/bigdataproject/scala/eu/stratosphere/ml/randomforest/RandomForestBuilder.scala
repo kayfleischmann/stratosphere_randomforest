@@ -29,14 +29,6 @@ class RandomForestBuilder {
 		}
 	}
 
-	def generateRandomBaggingTable(number: Int) = {
-		var baggingTable = new BaggingTable
-		for (i <- 0 until number) {
-			baggingTable.add(Random.nextInt(number))
-		}
-		baggingTable
-	}
-
 	def generateFeatureSubspace(randomCount: Int, maxRandomNumber: Int): Array[Int] = {
 		var features = Buffer[Int]();
 		// Generate an arrayList of all Integers
@@ -104,14 +96,13 @@ class RandomForestBuilder {
 
 			// randomized
 			var featureSubspace = DecisionTreeUtils.generateFeatureSubspace(featureSubspaceCount, totalFeatureCount)
-			val randomSamples = generateRandomBaggingTable(sampleCount)
-			nodesQueue += new TreeNode(treeId, 0, randomSamples, features, featureSubspace, -1, -1, -1)
+			nodesQueue += new TreeNode(treeId, 0, features, featureSubspace, -1, -1, -1)
 		} //for
 
 		System.out.println("write initial nodequeue to build");
 
 		// write the initial nodes to file to join in the iteration
-		writeNodes(nodesQueue, inputNodeQueuePath);
+		writeNodes(nodesQueue, inputNodeQueuePath, sampleCount);
 
 		// if next level, read from file which node has to be split
 		// each line treeId,nodeId, featuresIndicies, baggingTable
@@ -182,7 +173,7 @@ class RandomForestBuilder {
 	// write node-queue efficiently to file
 	// line format:
 	// treeID, nodeId, baggingTable, featureSpace, features
-	def writeNodes(nodes: Buffer[TreeNode], outputPath: String) {
+	def writeNodes(nodes: Buffer[TreeNode], outputPath: String, baggingTableSize : Int) {
 		val fw = new FileWriter(outputPath, false)
 		val newLine = System.getProperty("line.separator");
 		try {
@@ -194,11 +185,11 @@ class RandomForestBuilder {
 				fw.write(node.splitFeatureValue + ",")
 				fw.write(node.label + ",")
 
-				node.baggingTable.getBaggingTable.foreach {
-					case (feature, count) => {
-						fw.write(List.fill(count)(feature).mkString(" ") + " ");
-					}
-				}
+				for (i <- 0 until baggingTableSize)
+				{
+					fw.write(Random.nextInt(baggingTableSize) + " ")
+ 				}
+
 				fw.write(",")
 				fw.write(node.featureSpace.mkString(" ") + ",")
 				fw.write(node.features.mkString(" "));
