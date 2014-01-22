@@ -12,6 +12,7 @@ import util.Random
 import scala.collection.mutable.Buffer
 
 
+
 class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, var numClasses : Int, var treeLevel : Int, var numHinstogramBuckets : Int = 10) extends Program with ProgramDescription with Serializable {
 
 	override def getDescription() = {
@@ -53,9 +54,9 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 
 		val nodesAndSamples = nodequeue.flatMap { case(treeId,nodeId,baggingTable,featureSpace) =>
              	baggingTable
-                            .split(" ")
-                            .groupBy(x => x)
-                            .map(sampleIndex => (treeId, nodeId, sampleIndex._1.toInt, featureSpace.split(" ").map(_.toInt), sampleIndex._2.length))
+			        .split(" ")
+			        .groupBy(x => x)
+			        .map(sampleIndex => (treeId, nodeId, sampleIndex._1.toInt, featureSpace.split(" ").map(_.toInt), sampleIndex._2.length))
 			}
 			.join(samples)
 			.where { x => x._3 }
