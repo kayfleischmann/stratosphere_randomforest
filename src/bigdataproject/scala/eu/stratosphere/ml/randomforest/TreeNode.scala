@@ -2,7 +2,7 @@ package bigdataproject.scala.eu.stratosphere.ml.randomforest
 import collection.mutable.HashMap
 case class TreeNode ( 
 	treeId : Long,
-	nodeId : BigInt,
+	nodeId : Long,
 		
 	// list of features total available for this level
 	val features : Array[Int],
