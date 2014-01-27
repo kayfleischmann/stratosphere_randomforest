@@ -36,32 +36,34 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 			val values = line.split(",")
 			val treeId = values(0).toLong
 			val nodeId = values(1)
-			val bestSplitIndex = values(2)
-			val bestSplitValue = values(3)
-			val label = values(4)
-			val baggingTable = values(5)
-			val featureSpace = values(6)
-			(treeId, nodeId, baggingTable.trim, featureSpace.trim )
+			
+			(treeId, nodeId, line )
 		}
 
 		val samples = trainingSet map { line =>
-			val values = line.split(" ")
-			val sampleIndex = values.head.trim().toInt
-			val label = values.tail.head.trim().toInt
-			val features = values.tail.tail
+			var firstSpace = line.indexOf(' ', 0)
+			var secondSpace = line.indexOf(' ', firstSpace + 1)
+			
+			val sampleIndex = line.substring(0, firstSpace).trim().toInt
+			val label = line.substring(firstSpace, secondSpace).trim().toInt
+			
 		  	c3=c3+1;
-		  	if(c3%1000 == 0 ){
+		  	if(c3%20000 == 0 ){
 		  		System.out.println("samples counter "+c3)
 			}
-			(sampleIndex, label, features.map(_.toDouble))
+		  	
+			(sampleIndex, label, line)
 		}
 		
+		val nodesAndBaggingTable = nodequeue.flatMap { case(treeId,nodeId,line) =>
+			val values = line.split(",")
+			val baggingTable = values(5).trim
+			val featureSpace = values(6).trim     	
+			baggingTable
+				.split(" ")
+				.map(sampleIndex => (treeId, nodeId, sampleIndex.toInt, featureSpace, 1))
+		}
 		
-	  val nodesAndBaggingTable = nodequeue.flatMap { case(treeId,nodeId,baggingTable,featureSpace) =>
-             	baggingTable
-			        .split(" ")
-			        .map(sampleIndex => (treeId, nodeId, sampleIndex.toInt, featureSpace.split(" ").map(_.toInt), 1))
-			}		
 	  var counter=0;
 		val nodesAndSamples = samples
 			.join(nodesAndBaggingTable)
@@ -69,7 +71,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 			.isEqualTo { x => x._3 }
 			.map {(sample,node) =>
 			  	counter=counter+1;
-			  	if(counter%1000 == 0 ){
+			  	if(counter%20000 == 0 ){
 			  		System.out.println("nodesAndSamples counter "+counter)
 				}
 			  	(
@@ -77,8 +79,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 				node._2, //nodeid
 				sample._1, //sampleIndex
 				sample._2, //label
-				//sample._3.zipWithIndex.filter(x => node._4.contains(x._2)), //features
-				node._4.map(n => (sample._3(n), n)),
+				node._4.split(" ").map(_.toInt).toIndexedSeq.map(n => (sample._3.apply(n).toDouble, n)).toList, //features
 				node._5 //count
 				)
 			}
@@ -99,23 +100,24 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 									( treeId,nodeId,featureIndex,new Histogram(featureIndex, numHinstogramBuckets).update(featureValue, count) ) 
 									})
 								
-
+		var mergeCount = 0
 		val  nodeHistograms = nodeSampleFeatureHistograms
 							.groupBy({ x => (x._1,x._2,x._3)})
-							.reduce( {(left,right) => (left._1, left._2, left._3, left._4.merge(right._4)) } )
+							.reduce( {(left,right) =>
+								  	mergeCount=mergeCount+1;
+								  	if(mergeCount%20000 == 0 ){
+								  		System.out.println("merge counter "+mergeCount)
+									}
+								  	(left._1, left._2, left._3, left._4.merge(right._4)) } )
 							.flatMap( { nodeHistogram => 
+									
 									nodeHistogram._4.uniform(numHinstogramBuckets)
 													.map({ splitCandidate => 
 													  		( 	nodeHistogram._1, /*treeId */
 													  			nodeHistogram._2, /*nodeId*/
 													  			nodeHistogram._3, /*featureId*/
 													  			splitCandidate) }) 
-							})									
-							
-		val nodestoBuildFeatures = nodequeue
-										.flatMap({ case(treeId,nodeId,baggingTable,featureSpace) => 
-										  			featureSpace.split(" ").map({ feature=> 
-										  			  		(treeId, nodeId, feature.toInt ) }) })
+							})
 		
 	    var c1=0
 		val nodeFeatureDistributions = nodeHistograms
@@ -123,10 +125,10 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 									.where( { x => (x._1,x._2,x._3) })
 									.isEqualTo { x => (x._1,x._2,x._3) }
 									.map({ (nodeHistogram, nodeSampleFeature) =>
-								  	c1=c1+1;
-								  	if(c1%100000 == 0 ){
-								  		System.out.println("nodeFeatureDistributions counter "+c1)
-									}
+									  	c1=c1+1;
+									  	if(c1%100000 == 0 ){
+									  		System.out.println("nodeFeatureDistributions counter "+c1)
+										}
 
 			  							(
 									  		nodeHistogram._1, /*treeId */
@@ -272,7 +274,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 							.map({ (nodeAndSamples,bestSplits) =>
 
 								  	c4=c4+1;
-								  	if(c4%1000==0)
+								  	if(c4%20000==0)
 								  		System.out.println("nodeWithBaggingTable counter "+c4)
 								  	
 								  	var sampleFeature = nodeAndSamples._5.find(x=>x._2==bestSplits._3._1)
