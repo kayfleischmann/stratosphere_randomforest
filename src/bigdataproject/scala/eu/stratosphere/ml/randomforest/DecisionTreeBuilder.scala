@@ -6,10 +6,10 @@ import eu.stratosphere.api.common.Program
 import eu.stratosphere.api.common.ProgramDescription
 import eu.stratosphere.api.scala._
 import eu.stratosphere.api.scala.operators._
-
 import scala.util.matching.Regex
 import util.Random
 import scala.collection.mutable.Buffer
+import eu.stratosphere.compiler.PactCompiler
 
 
 
@@ -31,6 +31,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 
 		val newLine = System.getProperty("line.separator");
 
+		var c3=0
 		val nodequeue = inputNodeQueue map { line =>
 			val values = line.split(",")
 			val treeId = values(0).toLong
@@ -40,7 +41,6 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 			val label = values(4)
 			val baggingTable = values(5)
 			val featureSpace = values(6)
-			
 			(treeId, nodeId, baggingTable.trim, featureSpace.trim )
 		}
 
@@ -49,20 +49,30 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 			val sampleIndex = values.head.trim().toInt
 			val label = values.tail.head.trim().toInt
 			val features = values.tail.tail
+		  	c3=c3+1;
+		  	if(c3%1000 == 0 ){
+		  		System.out.println("samples counter "+c3)
+			}
 			(sampleIndex, label, features.map(_.toDouble))
 		}
-
-		val nodesAndSamples = nodequeue.flatMap { case(treeId,nodeId,baggingTable,featureSpace) =>
+		
+		
+	  val nodesAndBaggingTable = nodequeue.flatMap { case(treeId,nodeId,baggingTable,featureSpace) =>
              	baggingTable
 			        .split(" ")
-			        .groupBy(x => x)
-			        .map(sampleIndex => (treeId, nodeId, sampleIndex._1.toInt, featureSpace.split(" ").map(_.toInt), sampleIndex._2.length))
-			}
-			.join(samples)
-			.where { x => x._3 }
-			.isEqualTo { x => x._1 }
-			.map {(node, sample) =>
-				(
+			        .map(sampleIndex => (treeId, nodeId, sampleIndex.toInt, featureSpace.split(" ").map(_.toInt), 1))
+			}		
+	  var counter=0;
+		val nodesAndSamples = samples
+			.join(nodesAndBaggingTable)
+			.where { x => x._1 }
+			.isEqualTo { x => x._3 }
+			.map {(sample,node) =>
+			  	counter=counter+1;
+			  	if(counter%1000 == 0 ){
+			  		System.out.println("nodesAndSamples counter "+counter)
+				}
+			  	(
 				node._1, //treeId
 				node._2, //nodeid
 				sample._1, //sampleIndex
@@ -71,6 +81,8 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 				node._5 //count
 				)
 			}
+       
+	    nodesAndSamples.contract.setParameter(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND)
 
 	
         val nodeSampleFeatures  = nodesAndSamples
@@ -90,28 +102,32 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 		val  nodeHistograms = nodeSampleFeatureHistograms
 							.groupBy({ x => (x._1,x._2,x._3)})
 							.reduce( {(left,right) => (left._1, left._2, left._3, left._4.merge(right._4)) } )
-									
+							.flatMap( { nodeHistogram => 
+									nodeHistogram._4.uniform(numHinstogramBuckets)
+													.map({ splitCandidate => 
+													  		( 	nodeHistogram._1, /*treeId */
+													  			nodeHistogram._2, /*nodeId*/
+													  			nodeHistogram._3, /*featureId*/
+													  			splitCandidate) }) 
+							})									
 							
 		val nodestoBuildFeatures = nodequeue
 										.flatMap({ case(treeId,nodeId,baggingTable,featureSpace) => 
 										  			featureSpace.split(" ").map({ feature=> 
 										  			  		(treeId, nodeId, feature.toInt ) }) })
 		
-									
+	    var c1=0
 		val nodeFeatureDistributions = nodeHistograms
-									.flatMap( { nodeHistogram => 
-											nodeHistogram._4.uniform(numHinstogramBuckets)
-															.map({ splitCandidate => 
-															  		( 	nodeHistogram._1, /*treeId */
-															  			nodeHistogram._2, /*nodeId*/
-															  			nodeHistogram._3, /*featureId*/
-															  			splitCandidate) }) 
-									})
 									.join(nodeSampleFeatures)
 									.where( { x => (x._1,x._2,x._3) })
 									.isEqualTo { x => (x._1,x._2,x._3) }
 									.map({ (nodeHistogram, nodeSampleFeature) =>
-									  	(
+								  	c1=c1+1;
+								  	if(c1%100000 == 0 ){
+								  		System.out.println("nodeFeatureDistributions counter "+c1)
+									}
+
+			  							(
 									  		nodeHistogram._1, /*treeId */
 									  		nodeHistogram._2, /*nodeId */
 									  		nodeHistogram._3, /*featureId */
@@ -121,7 +137,10 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 									  		nodeSampleFeature._5 /*label*/, 
 									  		nodeSampleFeature._7 /*sampleCount*/  )
 									})
+
 									
+	   
+	   //nodeFeatureDistributions.contract.setParameter(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.)
 
 		// compute node distributions in a distributed fashion
 									
@@ -148,6 +167,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 									
 		// join all nodes in the queue with the corresponding tree-node-feature distributions
 		// compute split qualities:q
+	    var c2=0
 		val nodeDistributions = nodeFeatureDistributions_qj 
 		  						.cogroup(nodeFeatureDistributions_qjL)
 								.where( { x => (x._1,x._2, x._3) })
@@ -174,6 +194,10 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 								  (node12._1, node12._2, node12._3, node12._4,  node12._5, node12._6, node3 )
 								})
 								.map({ case (treeId,nodeId,featureIndex,splitCandidate, qj, qjL, qjR ) =>
+								  
+								  	c2=c2+1;
+							  		System.out.println("nodeDistributions counter "+c2)
+								  	
 									var p_qj = qj._4.split(" ").map(_.toDouble )
 									var p_qjL = Array[Double]()
 									var p_qjR = Array[Double]()
@@ -193,8 +217,8 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 									
 									var quality = quality_function( tau, 
 																	p_qj.map( _ /totalSamples).toList, 
-																	p_qjL.map( _ /totalSamplesLeft).toList, 
-																	p_qjR.map( _ /totalSamplesRight).toList);
+																	p_qjL.map( _ /totalSamples).toList, 
+																	p_qjR.map( _ /totalSamples).toList);
 									
 									(treeId,nodeId,(featureIndex,splitCandidate, quality, totalSamplesLeft, totalSamplesRight, bestLabel, bestLabelProbability) ) 									
 								});
@@ -237,55 +261,50 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 									})
 								
 		val nodestobuild = bestTreeNodeSplits.filter({ z  => !isStoppingCriterion(z) })
-  						
+ 						
+		var c4=0
 		// compute new nodes to build
-		val nodeWithBaggingTable = nodestobuild
-							.join( nodesAndSamples )
+		val nodeWithBaggingTable = nodesAndSamples
+							.join( nodestobuild )
 							.where( x => (x._1,x._2 ) )
 							.isEqualTo { x => (x._1,x._2) }
-							.map({ (bestSplits, nodeAndSamples) =>
+							.map({ (nodeAndSamples,bestSplits) =>
 
+								  	c4=c4+1;
+								  	if(c4%1000==0)
+								  		System.out.println("nodeWithBaggingTable counter "+c4)
+								  	
 							  		(	bestSplits._1 /*treeId*/, 
 							  			bestSplits._2 /*nodeId*/, 
 							  			bestSplits._3._1 /*featureIndex*/, 
 							  			bestSplits._3._2 /*splitCandidate*/, 
 							  			nodeAndSamples._3 /*sampleIndex*/,  
 							  			nodeAndSamples._4 /*label*/, 
-							  			nodeAndSamples._5.find(x=>x._2==bestSplits._3._1).get._1.toDouble /*featureValue*/, 
+							  			nodeAndSamples._5.find(x=>x._2==bestSplits._3._1).get._1.toDouble <= bestSplits._3._2 /*featureValue<bestsplit*/, 
 							  			bestSplits._3._1 /*featureIndex*/, 
 							  			nodeAndSamples._6 /*sampleCount*/ )
 							})
-							
-							
-		val leftNodesWithBaggingTables = nodeWithBaggingTable
-							
-							.filter({x=>x._7 <= x._4})
-							
-							.map({ case(treeId,nodeId, featureIndex, _, sampleIndex, _,_, _, count)=> 
-							  				(treeId,nodeId, featureIndex, (0 until count).toList.map(x=>sampleIndex).mkString(" ")) })
-							.groupBy({x=>(x._1,x._2)})
-							.reduce({ (left,right)=> (left._1,left._2, left._3,left._4+" "+right._4) })
+		nodeWithBaggingTable.contract.setParameter(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND)
+						
+		var c5=0				
+		val NodesWithBaggingTables = nodeWithBaggingTable
+							.map({ case(treeId,nodeId, featureIndex, _, sampleIndex, _, leftright, _, count)=> 
+							  				(treeId,nodeId,featureIndex, (0 until count).toList.map(x=>sampleIndex).mkString(" "), leftright) })
+							.groupBy({x=>(x._1,x._2,x._5)})
+							.reduce({ (left,right)=> (left._1,left._2, left._3,left._4+" "+right._4, left._5) })
 							.map({ x=> 
-							  	val treeId : Long = x._1
+								  	c5=c5+1;
+								  	if(c5%1000==0)
+								  		System.out.println("leftNodesWithBaggingTables counter "+c5)
+
+								val treeId : Long = x._1
 							  	val parentNodeId  : BigInt = BigInt(x._2)
 							  	val nodeId : BigInt = ((parentNodeId + 1) * 2) - 1
 							  	val featureIndex = x._3
 							  	(treeId,nodeId.toString, featureIndex/*featureId*/, 0.0 /*split*/, -1, x._4 /*baggingTable*/, "" /*featureList*/) 
 							  })
 							
-		val rightNodesWithBaggingTables = nodeWithBaggingTable
-							.filter({x=>x._7 > x._4})		
-							.map({ case(treeId,nodeId, featureIndex, _, sampleIndex, _,_, _, count)=> 
-							  				(treeId,nodeId, featureIndex, (0 until count).toList.map(x=>sampleIndex).mkString(" ")) })
-							.groupBy({x=>(x._1,x._2)})
-							.reduce({ (left,right)=> (left._1,left._2, left._3,left._4+" "+right._4) })
-							.map({ x=> 
-							  	val treeId :Long = x._1
-							  	val parentNodeId: BigInt = BigInt(x._2)
-							  	val nodeId: BigInt  = ((parentNodeId + 1) * 2)
-							  	val featureIndex = x._3
-							  	(treeId,nodeId.toString, featureIndex/*featureId*/, 0.0 /*split*/, -1, x._4 /*baggingTable*/, "" /*featureList*/) 
-							  })
+
 		
 		// output to tree file if featureIndex != -1 (node) or leaf (label detected)  
 		val finaTreeNodesSink = finalnodes
@@ -305,15 +324,20 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 
 			List((treeId, leftNodeId.toString, features), (treeId, rightNodeId.toString, features))
 		}
-
+							
+		var c7=0
 		// filter nodes to build, join the last featureList from node and remove :q
-		val nodeResultsWithFeatures =  rightNodesWithBaggingTables
-											.union(leftNodesWithBaggingTables)
+		val nodeResultsWithFeatures =  NodesWithBaggingTables
 											.join(nodeFeatures)
 											.where({ x => (x._1, x._2) })	/*join by treeId,nodeId */
 											.isEqualTo { y => (y._1, y._2) }
 											.map({ (nodeResult, nodeFeatures) => 
-											    val selectedFeatureForNode = nodeResult._3.toInt
+											  
+											  	c7=c7+1;
+											  	if(c7%1000==0)
+											  		System.out.println("nodeResultsWithFeatures counter "+c7)
+							  
+								  				val selectedFeatureForNode = nodeResult._3.toInt
 												val features = nodeFeatures._3.split(" ").map({ _.toInt }).filter(x => x != selectedFeatureForNode)
 												val featureSpace = generateFeatureSubspace(featureSubspaceCount, features.toBuffer)
 												(	nodeResult._1, 
@@ -338,7 +362,12 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 		
 		val nodeDistributionsSink =  nodeDistributions .write("/home/kay/rf/rf_nodedistributions_"+treeLevel, CsvOutputFormat(newLine, ","))
 
-		new ScalaPlan(Seq(treeLevelSink,nodeQueueSink,bestSplitSink,nodeDistributionsSink ))
+		val nodeHistogramsSink = nodeHistograms
+									.map({x=>(x._1, x._2, x._3, x._4.toString )})
+									.write("/home/kay/rf/rf_nodehistograms"+treeLevel, CsvOutputFormat(newLine, ","))
+
+		
+		new ScalaPlan(Seq(treeLevelSink,nodeQueueSink,bestSplitSink,nodeDistributionsSink,nodeHistogramsSink ))
 	}
 
 
