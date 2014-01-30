@@ -43,16 +43,18 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 		val samples = trainingSet map { line =>
 			var firstSpace = line.indexOf(' ', 0)
 			var secondSpace = line.indexOf(' ', firstSpace + 1)
+			var thirdSpace = line.indexOf(' ', secondSpace + 1)
 			
 			val sampleIndex = line.substring(0, firstSpace).trim().toInt
 			val label = line.substring(firstSpace, secondSpace).trim().toInt
-			
+			val values = line.substring(thirdSpace).trim().split(" ")
+
 		  	c3=c3+1;
 		  	if(c3%20000 == 0 ){
 		  		System.out.println("samples counter "+c3)
 			}
 		  	
-			(sampleIndex, label, line)
+			(sampleIndex, label, values)
 		}
 		
 		val nodesAndBaggingTable = nodequeue.flatMap { case(treeId,nodeId,line) =>
@@ -79,9 +81,11 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 				node._2, //nodeid
 				sample._1, //sampleIndex
 				sample._2, //label
-				node._4.split(" ").map(_.toInt).toIndexedSeq.map(n => (sample._3.apply(n).toDouble, n)).toList, //features
+				//node._4.split(" ").map(_.toInt).toIndexedSeq.map(n => (sample._3.apply(n).toDouble, n)).toList, //features
+				node._4.split(" ").map(n => (sample._3(n.toInt).toDouble, n.toInt)).toList,
 				node._5 //count
 				)
+				
 			}
        
 	    nodesAndSamples.contract.setParameter(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND)
@@ -110,7 +114,6 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 									}
 								  	(left._1, left._2, left._3, left._4.merge(right._4)) } )
 							.flatMap( { nodeHistogram => 
-									
 									nodeHistogram._4.uniform(numHinstogramBuckets)
 													.map({ splitCandidate => 
 													  		( 	nodeHistogram._1, /*treeId */
