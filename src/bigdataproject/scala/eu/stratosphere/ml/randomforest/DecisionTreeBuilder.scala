@@ -220,8 +220,8 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 									
 									var quality = quality_function( tau, 
 																	p_qj.map( _ /totalSamples).toList, 
-																	p_qjL.map( _ /totalSamples).toList, 
-																	p_qjR.map( _ /totalSamples).toList);
+																	p_qjL.map( _ /totalSamplesLeft).toList, 
+																	p_qjR.map( _ /totalSamplesRight).toList);
 									
 									(treeId,nodeId,(featureIndex,splitCandidate, quality, totalSamplesLeft, totalSamplesRight, bestLabel, bestLabelProbability) ) 									
 								});
@@ -294,21 +294,22 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 		var c5=0				
 		val NodesWithBaggingTables = nodeWithBaggingTable
 							.map({ case(treeId,nodeId, featureIndex, _, sampleIndex, _, isLeft, _, count)=> 
-							  				(treeId,nodeId,featureIndex, (0 until count).toList.map(x=>sampleIndex).mkString(" "), isLeft) })
+							  				(treeId,nodeId,featureIndex, (0 until count).toList.map(x=>sampleIndex), isLeft) })
 							.groupBy({x=>(x._1,x._2,x._5)})
-							.reduce({ (left,right)=> (left._1,left._2, left._3,left._4+" "+right._4, left._5) })
-							.map({ x=> 
-								  	c5=c5+1;
-								  	if(c5%1000==0)
-								  		System.out.println("leftNodesWithBaggingTables counter "+c5)
-
-							  	var nodeId : Long = ((x._2.toLong + 1) * 2)
-							  	if (x._5)
+							.reduceGroup( baggingList => {
+							   val buffered = baggingList.buffered
+							   val keyValues = buffered.head
+							   val treeId = keyValues._1
+                               val featureIndex = keyValues._3
+                               var isLeftNode = keyValues._5
+                               
+							  var nodeId : BigInt = (( BigInt(keyValues._2) + 1) * 2)
+							  if (isLeftNode)
 							  		nodeId = nodeId - 1
-							  		
-							  	val featureIndex = x._3
-							  	(x._1,nodeId.toString, featureIndex/*featureId*/, 0.0 /*split*/, -1, x._4 /*baggingTable*/, "" /*featureList*/) 
-							  })
+
+                              (treeId, nodeId.toString, featureIndex,  0.0 /*split*/, -1, baggingList.flatMap({ x=> x._4 }) /*baggingTable*/, "" /*featureList*/ )
+							})
+
 		
 		// output to tree file if featureIndex != -1 (node) or leaf (label detected)  
 		val finaTreeNodesSink = finalnodes
@@ -320,16 +321,15 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 		val nodeFeatures = inputNodeQueue flatMap { line =>
 			val values = line.trim.split(",")
 			val treeId = values(0).toLong
-			val nodeId : Long = values(1).toLong
+			val nodeId : BigInt = BigInt( values(1) )
 			val features = values(7)
-
-			val leftNodeId : Long = ((nodeId + 1L) * 2) - 1
-			val rightNodeId : Long = ((nodeId + 1L) * 2)
+			
+			val leftNodeId : BigInt = ((nodeId + 1L) * 2) - 1
+			val rightNodeId : BigInt = ((nodeId + 1L) * 2)
 
 			List((treeId, leftNodeId.toString, features), (treeId, rightNodeId.toString, features))
 		}
 							
-		var c7=0
 		// filter nodes to build, join the last featureList from node and remove :q
 		val nodeResultsWithFeatures =  NodesWithBaggingTables
 											.join(nodeFeatures)
@@ -337,10 +337,6 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 											.isEqualTo { y => (y._1, y._2) }
 											.map({ (nodeResult, nodeFeatures) => 
 											  
-											  	c7=c7+1;
-											  	if(c7%1000==0)
-											  		System.out.println("nodeResultsWithFeatures counter "+c7)
-							  
 								  				val selectedFeatureForNode = nodeResult._3.toInt
 												val features = nodeFeatures._3.split(" ").map({ _.toInt }).filter(x => x != selectedFeatureForNode)
 												val featureSpace = generateFeatureSubspace(featureSubspaceCount, features.toBuffer)
@@ -349,7 +345,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 												    -1, 
 												    -1, 
 												    -1,
-												    nodeResult._6, 
+												    nodeResult._6.mkString(" "), 
 												    featureSpace.mkString(" "), 
 												    features.mkString(" "))
 											})
