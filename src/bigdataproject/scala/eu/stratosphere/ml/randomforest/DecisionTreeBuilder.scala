@@ -82,7 +82,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 				sample._1, //sampleIndex
 				sample._2, //label
 				//node._4.split(" ").map(_.toInt).toIndexedSeq.map(n => (sample._3.apply(n).toDouble, n)).toList, //features
-				node._4.split(" ").map(n => (sample._3(n.toInt).toDouble, n.toInt)).toList,
+				node._4.split(" ").map(n => (sample._3(n.toInt-1).toDouble, n.toInt)).toList,
 				node._5 //count
 				)
 				
