@@ -223,8 +223,8 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 									
 									var quality = quality_function( tau, 
 																	p_qj.map( _ /totalSamples).toList, 
-																	p_qjL.map( _ /totalSamplesLeft).toList, 
-																	p_qjR.map( _ /totalSamplesRight).toList);
+																	p_qjL.map( _ /totalSamples).toList, 
+																	p_qjR.map( _ /totalSamples).toList);
 									
 									(treeId,nodeId,(featureIndex,splitCandidate, quality, totalSamplesLeft, totalSamplesRight, bestLabel, bestLabelProbability) ) 									
 								});
