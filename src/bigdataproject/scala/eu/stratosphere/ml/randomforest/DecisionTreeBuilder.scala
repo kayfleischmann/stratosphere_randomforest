@@ -13,7 +13,7 @@ import eu.stratosphere.compiler.PactCompiler
 
 
 
-class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, var numClasses : Int, var treeLevel : Int, var numHinstogramBuckets : Int = 10) extends Program with ProgramDescription with Serializable {
+class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, var treeLevel : Int, var numHinstogramBuckets : Int = 10) extends Program with ProgramDescription with Serializable {
 
 	override def getDescription() = {
 		"Usage: [inputPath] [outputPath] ([number_trees])"
@@ -149,23 +149,23 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 		// compute node distributions in a distributed fashion
 									
 		val nodeFeatureDistributions_qj = nodeSampleFeatures
-  									.map({ x => (x._1, x._2, x._3, createLabelArray(numClasses, List( (x._5/*label*/, x._7 /*count*/ )))) })  									
+  									.map({ x => (x._1, x._2, x._3, createLabelArray(x._5, List( (x._5/*label*/, x._7 /*count*/ )))) })  									
  									.groupBy({x=>(x._1,x._2,x._3)})
-									.reduce({(left,right)=>(left._1,left._2,left._3, left._4.zip(right._4).map(x=>x._1+x._2)) })
+									.reduce({(left,right)=>(left._1,left._2,left._3, left._4.zipAll(right._4,0,0).map(x=>x._1+x._2)) })
 									.map({ x => (x._1, x._2, x._3, x._4.toList.mkString(" ") ) })
 
   		val nodeFeatureDistributions_qjL = nodeFeatureDistributions
   									.filter({x=> x._6 <= x._4})
-  									.map({ x => (x._1, x._2, x._3, x._4, createLabelArray(numClasses, List( (x._7/*label*/, x._8 /*count*/ )))) })
+  									.map({ x => (x._1, x._2, x._3, x._4, createLabelArray(x._7, List( (x._7/*label*/, x._8 /*count*/ )))) })
  									.groupBy({x=>(x._1,x._2,x._3,x._4)})
-									.reduce({(left,right)=>(left._1,left._2,left._3,left._4, left._5.zip(right._5).map(x=>x._1+x._2)) })
+									.reduce({(left,right)=>(left._1,left._2,left._3,left._4, left._5.zipAll(right._5,0,0).map(x=>x._1+x._2)) })
 									.map({ x => (x._1, x._2, x._3,x._4, x._5.toList.mkString(" ") ) })
 
   		val nodeFeatureDistributions_qjR = nodeFeatureDistributions
   									.filter({x=> x._6 > x._4})
-  									.map({ x => (x._1, x._2, x._3, x._4, createLabelArray(numClasses, List( (x._7/*label*/, x._8 /*count*/ )))) })
+  									.map({ x => (x._1, x._2, x._3, x._4, createLabelArray(x._7, List( (x._7/*label*/, x._8 /*count*/ )))) })
  									.groupBy({x=>(x._1,x._2,x._3,x._4)})
-									.reduce({(left,right)=>(left._1,left._2,left._3,left._4, left._5.zip(right._5).map(x=>x._1+x._2)) })
+									.reduce({(left,right)=>(left._1,left._2,left._3,left._4, left._5.zipAll(right._5,0,0).map(x=>x._1+x._2)) })
 									.map({ x => (x._1, x._2, x._3,x._4, x._5.toList.mkString(" ") ) })
 
 									
@@ -400,8 +400,8 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 		arr;
 	}
 	
-	def createLabelArray( labels : Integer, values : List[(Integer,Integer)])={
-	  val a = new Array[Int](labels)
+	def createLabelArray( label : Integer, values : List[(Integer,Integer)])={
+	  val a = new Array[Int](label+1)
 	  values.foreach(f=>a(f._1)=f._2)
 	  a
 	}
