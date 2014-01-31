@@ -43,17 +43,15 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 		val samples = trainingSet map { line =>
 			var firstSpace = line.indexOf(' ', 0)
 			var secondSpace = line.indexOf(' ', firstSpace + 1)
-			var thirdSpace = line.indexOf(' ', secondSpace + 1)
 			
 			val sampleIndex = line.substring(0, firstSpace).trim().toInt
 			val label = line.substring(firstSpace, secondSpace).trim().toInt
-			val values = line.substring(thirdSpace).trim().split(" ")
+			val values = line.trim().split(" ").tail.tail
 
 		  	c3=c3+1;
 		  	if(c3%20000 == 0 ){
 		  		System.out.println("samples counter "+c3)
-			}
-		  	
+			}		  	
 			(sampleIndex, label, values)
 		}
 		
@@ -82,7 +80,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 				sample._1, //sampleIndex
 				sample._2, //label
 				//node._4.split(" ").map(_.toInt).toIndexedSeq.map(n => (sample._3.apply(n).toDouble, n)).toList, //features
-				node._4.split(" ").map(n => (sample._3(n.toInt-1).toDouble, n.toInt)).toList,
+				node._4.split(" ").map(n => (sample._3(n.toInt).toDouble, n.toInt)).toList,
 				node._5 //count
 				)
 				
