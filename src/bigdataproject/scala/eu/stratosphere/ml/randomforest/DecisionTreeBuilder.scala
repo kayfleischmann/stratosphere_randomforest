@@ -1,12 +1,9 @@
 package bigdataproject.scala.eu.stratosphere.ml.randomforest
 
-import eu.stratosphere.client.LocalExecutor
-import eu.stratosphere.api.common.Plan
 import eu.stratosphere.api.common.Program
 import eu.stratosphere.api.common.ProgramDescription
 import eu.stratosphere.api.scala._
 import eu.stratosphere.api.scala.operators._
-import scala.util.matching.Regex
 import util.Random
 import scala.collection.mutable.Buffer
 import eu.stratosphere.compiler.PactCompiler
@@ -41,8 +38,8 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 		}
 
 		val samples = trainingSet map { line =>
-			var firstSpace = line.indexOf(' ', 0)
-			var secondSpace = line.indexOf(' ', firstSpace + 1)
+			val firstSpace = line.indexOf(' ', 0)
+			val secondSpace = line.indexOf(' ', firstSpace + 1)
 			
 			val sampleIndex = line.substring(0, firstSpace).trim().toInt
 			val label = line.substring(firstSpace, secondSpace).trim().toInt

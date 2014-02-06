@@ -1,46 +1,41 @@
 package bigdataproject.scala.eu.stratosphere.ml.randomforest
 
 import eu.stratosphere.client.LocalExecutor
-import eu.stratosphere.api.common.Plan
-import eu.stratosphere.api.common.Program
-import eu.stratosphere.api.common.ProgramDescription
-import eu.stratosphere.api.scala._
-import eu.stratosphere.api.scala.operators._
 import scala.util.Random
-import java.util.ArrayList
 import java.io._
 import scala.io.Source
 import scala.collection.mutable.Buffer
 import org.apache.log4j.Level
 import eu.stratosphere.client.PlanExecutor
 import eu.stratosphere.client.RemoteExecutor
-import org.apache.hadoop.conf.Configuration
-import eu.stratosphere.runtime.fs.hdfs.DistributedFileSystem
-import eu.stratosphere.core.fs.{FSDataOutputStream, FSDataInputStream}
 import eu.stratosphere.core.fs.FileSystem
 import eu.stratosphere.core.fs.Path
-import bigdataproject.scala.eu.stratosphere.ml.randomforest.TreeNode
+import bigdataproject.scala.eu.stratosphere.ml.randomforest.SampleCountEstimator
 import java.net.URI
 
+
 class RandomForestBuilder(val remoteJar : String = null, val remoteJobManager : String = null, val remoteJobManagerPort : Int = 0) {
-	def getSampleCount(filename: String): Int = {
-		1529
-		/*val src = io.Source.fromFile(filename)
-		try {
-			src.getLines.size.toInt
-		} finally {
-			src.close()
-		}*/
+
+  def getSampleCount( ex : PlanExecutor, filename: String, outputPath : String ): Int = {
+    val outputSampleCountPath = outputPath+"/samples_count"
+    val plan = new SampleCountEstimator().getPlan( filename, outputSampleCountPath )
+    val runtime = ex.executePlan(plan)
+
+    val fs : FileSystem = FileSystem.get(new File(outputSampleCountPath).toURI)
+    val is : InputStream = fs.open(new Path(outputSampleCountPath) )
+    val br : BufferedReader = new BufferedReader(new InputStreamReader(is))
+    val line=br.readLine()
+    line.toInt
 	}
 	def getFeatureCount(filename: String): Int = {
-	  784
-	  /*
-		val src = io.Source.fromFile(filename)
+    val fs : FileSystem = FileSystem.get(new File(filename).toURI)
+    val is : InputStream = fs.open(new Path(filename) )
+    val br : BufferedReader = new BufferedReader(new InputStreamReader(is))
+    val line=br.readLine()
 		try {
-			src.getLines.find(_ => true).orNull.split(" ").tail.tail.size
+      line.split(" ").tail.tail.size
 		} finally {
-			src.close()
-		}*/
+		}
 	}
 
 	def generateFeatureSubspace(randomCount: Int, maxRandomNumber: Int): Array[Int] = {
@@ -94,6 +89,19 @@ class RandomForestBuilder(val remoteJar : String = null, val remoteJobManager : 
 	}
 
 	def build(outputPath: String, inputPath: String, inputNodeQueuePath: String, outputNodeQueuePath: String, outputTreePath: String, numTrees: Int) = {
+
+    // prepare executor
+    var ex : PlanExecutor = null
+    if( remoteJar == null ){
+      val localExecutor = new LocalExecutor();
+      localExecutor.start()
+      ex = localExecutor
+      LocalExecutor.setLoggingLevel(Level.ERROR)
+    } else {
+      ex = new RemoteExecutor(remoteJobManager, remoteJobManagerPort, remoteJar );
+    }
+
+
     val fs : FileSystem = FileSystem.get(new File(outputPath).toURI)
 
 		// start measuring time
@@ -104,7 +112,7 @@ class RandomForestBuilder(val remoteJar : String = null, val remoteJobManager : 
 		val featureSubspaceCount = Math.round(Math.log(totalFeatureCount).toFloat + 1);
 
 		// add node to build for each tree
-		val sampleCount = getSampleCount(inputPath)
+		val sampleCount = getSampleCount(ex, inputPath, outputPath)
 		for (treeId <- 0 until numTrees) {
 			// TODO: the features left is the whole set minus still used best-splits
 			val features = (0 until totalFeatureCount).toArray
@@ -120,18 +128,6 @@ class RandomForestBuilder(val remoteJar : String = null, val remoteJobManager : 
 		// if next level, read from file which node has to be split
 		// each line treeId,nodeId, featuresIndicies, baggingTable
 
-		// generate plan with a distributed nodesQueue
-		var ex : PlanExecutor = null
-		if( remoteJar == null ){
-			val localExecutor = new LocalExecutor();
-			localExecutor.start()
-		    ex = localExecutor
-			LocalExecutor.setLoggingLevel(Level.ERROR)
-		} else {
-		  ex = new RemoteExecutor(remoteJobManager, remoteJobManagerPort, remoteJar );
-		}
-		
-		
 		var nodeQueueSize = 0
 		var level = 0
 		var totalNodes = nodesQueue.length
