@@ -8,30 +8,39 @@ import eu.stratosphere.api.scala._
 import eu.stratosphere.api.scala.operators._
 import scala.util.Random
 import java.util.ArrayList
-import java.io.File
+import java.io._
 import scala.io.Source
 import scala.collection.mutable.Buffer
-import java.io.FileWriter
-import java.io.BufferedInputStream
-import java.io.FileInputStream
 import org.apache.log4j.Level
+import eu.stratosphere.client.PlanExecutor
+import eu.stratosphere.client.RemoteExecutor
+import org.apache.hadoop.conf.Configuration
+import eu.stratosphere.runtime.fs.hdfs.DistributedFileSystem
+import eu.stratosphere.core.fs.{FSDataOutputStream, FSDataInputStream}
+import eu.stratosphere.core.fs.FileSystem
+import eu.stratosphere.core.fs.Path
+import bigdataproject.scala.eu.stratosphere.ml.randomforest.TreeNode
+import java.net.URI
 
-class RandomForestBuilder {
+class RandomForestBuilder(val remoteJar : String = null, val remoteJobManager : String = null, val remoteJobManagerPort : Int = 0) {
 	def getSampleCount(filename: String): Int = {
-		val src = io.Source.fromFile(filename)
+		1529
+		/*val src = io.Source.fromFile(filename)
 		try {
 			src.getLines.size.toInt
 		} finally {
 			src.close()
-		}
+		}*/
 	}
 	def getFeatureCount(filename: String): Int = {
+	  784
+	  /*
 		val src = io.Source.fromFile(filename)
 		try {
 			src.getLines.find(_ => true).orNull.split(" ").tail.tail.size
 		} finally {
 			src.close()
-		}
+		}*/
 	}
 
 	def generateFeatureSubspace(randomCount: Int, maxRandomNumber: Int): Array[Int] = {
@@ -48,16 +57,16 @@ class RandomForestBuilder {
 		arr = Array(randomCount)
 		arr = Array.fill(randomCount)(0)
 		for (i <- 0 until randomCount) {
-			var random = new Random().nextInt(features.length);
+			val random = new Random().nextInt(features.length);
 			arr(i) = features.remove(random);
 		}
 		arr;
 	}
-
+	
 	def eval(inputFile: String, treeFile: String, outputFile: String) = {
-		val inputPath = new File(inputFile).toURI().toString()
-		val treePath = new File(treeFile).toURI().toString()
-		val outputPath = new File(outputFile).toURI().toString()
+		val inputPath = inputFile //new File(inputFile).toURI().toString()
+		val treePath = treeFile //new File(treeFile).toURI().toString()
+		val outputPath = outputFile //new File(outputFile).toURI().toString()
 
 		val ex = new LocalExecutor()
 		LocalExecutor.setLoggingLevel(Level.ERROR)
@@ -85,58 +94,68 @@ class RandomForestBuilder {
 	}
 
 	def build(outputPath: String, inputPath: String, inputNodeQueuePath: String, outputNodeQueuePath: String, outputTreePath: String, numTrees: Int) = {
+    val fs : FileSystem = FileSystem.get(new File(outputPath).toURI)
 
 		// start measuring time
 		val t0 = System.currentTimeMillis
 
 		var nodesQueue = Buffer[TreeNode]()
 		val totalFeatureCount = getFeatureCount(inputPath)
-		var featureSubspaceCount = Math.round(Math.log(totalFeatureCount).toFloat + 1);
+		val featureSubspaceCount = Math.round(Math.log(totalFeatureCount).toFloat + 1);
 
 		// add node to build for each tree
 		val sampleCount = getSampleCount(inputPath)
 		for (treeId <- 0 until numTrees) {
 			// TODO: the features left is the whole set minus still used best-splits
-			var features = (0 until totalFeatureCount).toArray
+			val features = (0 until totalFeatureCount).toArray
 
 			// randomized
-			var featureSubspace = DecisionTreeUtils.generateFeatureSubspace(featureSubspaceCount, totalFeatureCount)
+			val featureSubspace = DecisionTreeUtils.generateFeatureSubspace(featureSubspaceCount, totalFeatureCount)
 			nodesQueue += new TreeNode(treeId, 0, features, featureSubspace, -1, -1, -1)
 		} //for
 
 		// write the initial nodes to file to join in the iteration
-		writeNodes(nodesQueue, inputNodeQueuePath, sampleCount);
+		writeNodes(nodesQueue, new File(inputNodeQueuePath).toURI(), sampleCount);
 
 		// if next level, read from file which node has to be split
 		// each line treeId,nodeId, featuresIndicies, baggingTable
 
 		// generate plan with a distributed nodesQueue
-		val ex = new LocalExecutor()
-		LocalExecutor.setLoggingLevel(Level.ERROR)
-		ex.start()
-
+		var ex : PlanExecutor = null
+		if( remoteJar == null ){
+			val localExecutor = new LocalExecutor();
+			localExecutor.start()
+		    ex = localExecutor
+			LocalExecutor.setLoggingLevel(Level.ERROR)
+		} else {
+		  ex = new RemoteExecutor(remoteJobManager, remoteJobManagerPort, remoteJar );
+		}
+		
+		
 		var nodeQueueSize = 0
 		var level = 0
 		var totalNodes = nodesQueue.length
 
 		// do some cleanup stuff
-		new File(outputTreePath).delete
+    fs.delete(new Path(new File(outputTreePath).toURI), false )
+
 		val level_outputTreePath = outputTreePath + "CurrentLevel"
 
 		do {
 			val plan = new DecisionTreeBuilder(70, featureSubspaceCount, level ).getPlan(
-				new File(inputPath).toURI().toString(),
-				new File(inputNodeQueuePath).toURI().toString(),
-				new File(outputNodeQueuePath).toURI().toString(),
-				new File(level_outputTreePath).toURI().toString(),
+				inputPath,
+				inputNodeQueuePath,
+				outputNodeQueuePath,
+				level_outputTreePath,
 				numTrees.toString)
 			val runtime = ex.executePlan(plan)
 			
 			// delete old input node queue
-			new File(inputNodeQueuePath).delete()
+      fs.delete(new Path(new File(inputNodeQueuePath).toURI), false )
+
 
 			// change output nodequeue to input queue
-			new File(outputNodeQueuePath).renameTo(new File(inputNodeQueuePath))
+      fs.rename(new Path(new File(outputNodeQueuePath).toURI), new Path(new File(inputNodeQueuePath).toURI))
 
 			// check how many nodes to build
 			nodeQueueSize = Source.fromFile(inputNodeQueuePath).getLines().length
@@ -144,13 +163,24 @@ class RandomForestBuilder {
 			level = level + 1;
 			totalNodes += nodeQueueSize
 
-			//store nodes for tree file
-			val fw = new FileWriter(new File(outputTreePath), true)
-			fw.write(Source.fromFile(level_outputTreePath).getLines().mkString(System.getProperty("line.separator")))
-			fw.write(System.getProperty("line.separator"))
+      val is : InputStream = fs.open(new Path(level_outputTreePath) )
+      val os : OutputStream = fs.create(new Path(outputTreePath), true )
+      val newLine = System.getProperty("line.separator");
+      val fw = new OutputStreamWriter(os)
+
+      // append output data into global tree-file
+      val br : BufferedReader = new BufferedReader(new InputStreamReader(is))
+      var line=br.readLine()
+      do {
+          fw.write(line)
+          fw.write(newLine)
+          line = br.readLine();
+      } while(line != null)
 			fw.close()
-			new File(level_outputTreePath).delete()
-			
+
+      // delete temporal file
+      fs.delete(new Path(new File(level_outputTreePath).toURI), false )
+
 		} while (nodeQueueSize > 0)
 
 
@@ -170,36 +200,33 @@ class RandomForestBuilder {
 	// write node-queue efficiently to file
 	// line format:
 	// treeID, nodeId, baggingTable, featureSpace, features
-	def writeNodes(nodes: Buffer[TreeNode], outputPath: String, baggingTableSize : Int) {
-		val fw = new FileWriter(outputPath, false)
+	def writeNodes(nodes: Buffer[TreeNode], outputPath: URI, baggingTableSize : Int) {
+    val fs : FileSystem = FileSystem.get(outputPath)
+    val os : OutputStream = fs.create(new Path(outputPath), true )
 		val newLine = System.getProperty("line.separator");
+    val fw = new OutputStreamWriter(os)
 		try {
 			for (i <- 0 until nodes.length) {
-				var node = nodes(i)
-				fw.write(node.treeId + ",")
-				fw.write(node.nodeId + ",")
-				fw.write(node.splitFeatureIndex + ",")
-				fw.write(node.splitFeatureValue + ",")
-				fw.write(node.label + ",")
+				val node = nodes(i)
+        fw.write(node.treeId + ",")
+        fw.write(node.nodeId + ",")
+        fw.write(node.splitFeatureIndex + ",")
+        fw.write(node.splitFeatureValue + ",")
+        fw.write(node.label + ",")
 				
 				for (i <- 0 until baggingTableSize)
 				{
-					fw.write(Random.nextInt(baggingTableSize) + " ")
+          fw.write(Random.nextInt(baggingTableSize) + " ")
 				}
 
-				//node.baggingTable.getBaggingTable.foreach {
-				//	case (feature, count) => {
-				//		fw.write(List.fill(count)(feature).mkString(" ") + " ");
-				//	}
-				//}
-				fw.write(",")
-				fw.write(node.featureSpace.mkString(" ") + ",")
-				fw.write(node.features.mkString(" "));
+        fw.write(",")
+        fw.write(node.featureSpace.mkString(" ") + ",")
+        fw.write(node.features.mkString(" "));
 				if (i != nodes.length - 1)
-					fw.write(newLine)
+          fw.write(newLine)
 			}
 		} finally {
-			fw.close()
+      fw.close()
 		}
 	}
 
