@@ -158,7 +158,8 @@ class RandomForestBuilder(val remoteJar : String = null, val remoteJobManager : 
       fs.rename(new Path(new File(outputNodeQueuePath).toURI), new Path(new File(inputNodeQueuePath).toURI))
 
 			// check how many nodes to build
-			nodeQueueSize = Source.fromFile(inputNodeQueuePath).getLines().length
+			nodeQueueSize = Source.fromInputStream(fs.open(new Path(new File(inputNodeQueuePath).toURI))).getLines().length
+
 			// increment for next level
 			level = level + 1;
 			totalNodes += nodeQueueSize
