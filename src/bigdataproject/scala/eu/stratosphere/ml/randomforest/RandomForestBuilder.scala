@@ -101,7 +101,7 @@ class RandomForestBuilder(val remoteJar : String = null,
 			src.close()
 		}
 
-		System.exit(0)
+    //(correct.toDouble * 100 / lines.length.toDouble)
 	}
 
 	/**
@@ -190,18 +190,38 @@ class RandomForestBuilder(val remoteJar : String = null,
 			// check how many nodes to build
 			nodeQueueSize = Source.fromInputStream(fs.open(new Path(new File(inputNodeQueuePath).toURI))).getLines().length
 
-			// increment for next level
-			level = level + 1;
 			totalNodes += nodeQueueSize
+
+      val newLine = System.getProperty("line.separator");
+      var treeData = ""
+      if(level>0){
+        val stream =Source.fromInputStream(fs.open(new Path(new File(outputTreePath).toURI)))
+        treeData = stream.getLines.mkString(newLine)
+        stream.close()
+      }
 
 			val is : InputStream = fs.open(new Path(level_outputTreePath) )
 			val os : OutputStream = fs.create(new Path(outputTreePath), true )
-			val newLine = System.getProperty("line.separator");
+
 			val fw = new OutputStreamWriter(os)
-			
-			// append output data into global tree-file
 			val br : BufferedReader = new BufferedReader(new InputStreamReader(is))
-			var line=br.readLine()
+
+      // write existing tree data
+      if(treeData.length>0){
+        fw.write(treeData)
+        fw.write(newLine)
+      }
+
+      // append new tree data
+      var line = br.readLine()
+      System.out.println(line)
+      do {
+        fw.write(line)
+        fw.write(newLine)
+        line = br.readLine();
+      } while(line != null)
+
+      line = br.readLine()
 			do {
 			    fw.write(line)
 			    fw.write(newLine)
@@ -211,6 +231,9 @@ class RandomForestBuilder(val remoteJar : String = null,
 
 			// delete temporal file
 			fs.delete(new Path(new File(level_outputTreePath).toURI), false )
+
+      // increment for next level
+      level = level + 1;
 
 		} while (nodeQueueSize > 0)
 

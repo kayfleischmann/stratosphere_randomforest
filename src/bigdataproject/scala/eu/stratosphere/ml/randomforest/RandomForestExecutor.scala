@@ -1,8 +1,5 @@
-package bigdataproject.scala.eu.stratosphere.test
+package bigdataproject.scala.eu.stratosphere.ml.randomforest
 
-import bigdataproject.scala.eu.stratosphere.ml.randomforest.DecisionTreeBuilder
-import bigdataproject.scala.eu.stratosphere.ml.randomforest.RandomForestBuilder
-import bigdataproject.scala.eu.stratosphere.ml.randomforest.Histogram
 
 object RandomForestExecutor {
  
