@@ -33,9 +33,9 @@ class DecisionTreeEvaluator() extends Program with ProgramDescription with Seria
    * "[data item index], [classified label], [actual label from data item]"
    */
   override def getPlan(args: String*) = {
-    val inputPath = args(0)
-    val treePath = args(1)
-    val outputPath = args(2)
+    val inputPath = DecisionTreeUtils.preParseURI(args(0))
+    val treePath = DecisionTreeUtils.preParseURI(args(1))
+    val outputPath = DecisionTreeUtils.preParseURI(args(2))
     
     val inputFile = TextFile(inputPath)
     val treeFile = TextFile(treePath)

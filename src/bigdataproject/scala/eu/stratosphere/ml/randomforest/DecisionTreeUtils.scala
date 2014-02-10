@@ -1,6 +1,7 @@
 package bigdataproject.scala.eu.stratosphere.ml.randomforest
 import scala.collection.mutable.Buffer
 import scala.util.Random
+import java.io.File
 
 object DecisionTreeUtils {
   def generateFeatureSubspace(randomCount : Int, maxRandomNumber : Int) : Array[Int] = {
@@ -22,5 +23,17 @@ object DecisionTreeUtils {
 	    arr(i)=features.remove(random);
 	}
 	arr;
+  }
+  
+  var preParseURIForLocalFileSystem = false
+  
+  /**
+   * Useful when testing on a Windows system
+   */
+  def preParseURI(uri : String) : String = {
+  	if (preParseURIForLocalFileSystem)
+  		new File(uri).toURI().toString()
+  	else
+  		uri
   }
 }

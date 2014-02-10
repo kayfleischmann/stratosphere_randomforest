@@ -16,8 +16,8 @@ class SampleCountEstimator extends Program with ProgramDescription with Serializ
   }
   override def getPlan(args: String*) = {
     val newLine = System.getProperty("line.separator");
-    val inputPath = args(0)
-    val outputPath = args(1)
+    val inputPath = DecisionTreeUtils.preParseURI(args(0))
+    val outputPath = DecisionTreeUtils.preParseURI(args(1))
     val trainingSet = TextFile(inputPath)
     val samples = trainingSet map { line => (1) } reduce { (x,y)=>(x+y) }
     val totalCountSink = samples.write(outputPath, CsvOutputFormat(newLine, ","))

@@ -48,11 +48,11 @@ class DecisionTreeBuilder(var minNrOfItems: Int,
 	 * @param outputPath Path for debug information. 
 	 */
 	override def getPlan(args: String*) = {
-		val inputPath = args(0)
-		val inputNodeQueuePath = args(1)
-		val outputNodeQueuePath = args(2)
-		val outputTreePath = args(3)
-		val outputPath = args(4)
+		val inputPath = DecisionTreeUtils.preParseURI(args(0))
+		val inputNodeQueuePath = DecisionTreeUtils.preParseURI(args(1))
+		val outputNodeQueuePath = DecisionTreeUtils.preParseURI(args(2))
+		val outputTreePath = DecisionTreeUtils.preParseURI(args(3))
+		val outputPath = DecisionTreeUtils.preParseURI(args(4))
 
 		val trainingSet = TextFile(inputPath)
 		val inputNodeQueue = TextFile(inputNodeQueuePath)

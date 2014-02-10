@@ -102,6 +102,7 @@ class RandomForestBuilder(val remoteJar : String = null,
 		}
 
     //(correct.toDouble * 100 / lines.length.toDouble)
+		System.exit(0)
 	}
 
 	/**
@@ -133,12 +134,12 @@ class RandomForestBuilder(val remoteJar : String = null,
 	      ex = new RemoteExecutor(remoteJobManager, remoteJobManagerPort, remoteJar );
 	    }
 
-
-    	val fs : FileSystem = FileSystem.get(new File(outputPath).toURI)
+	    //TODO: Use DecisionTreeUtils.preParseURI() here?
+    	val fileSystem : FileSystem = FileSystem.get(new File(outputPath).toURI)
+		val newLine = System.getProperty("line.separator");
 
 		// start measuring time
 		val t0 = System.currentTimeMillis
-
 		System.out.println(inputPath)
 
 		var nodesQueue = Buffer[TreeNode]()
@@ -167,10 +168,12 @@ class RandomForestBuilder(val remoteJar : String = null,
 		var totalNodes = nodesQueue.length
 
 		// do some cleanup stuff
-		fs.delete(new Path(new File(outputTreePath).toURI), false )
+		fileSystem.delete(new Path(new File(outputTreePath).toURI), false )
 
 		val level_outputTreePath = outputTreePath + "CurrentLevel"
-
+		val treeStream : OutputStream = fileSystem.create(new Path(outputTreePath), true )
+		val treeStreamWriter = new OutputStreamWriter(treeStream)
+		
 		do {
 			val plan = new DecisionTreeBuilder(70, featureSubspaceCount, level ).getPlan(
 				inputPath,
@@ -181,62 +184,35 @@ class RandomForestBuilder(val remoteJar : String = null,
 			val runtime = ex.executePlan(plan)
 			
 			// delete old input node queue
-			fs.delete(new Path(new File(inputNodeQueuePath).toURI), false )
+			fileSystem.delete(new Path(new File(inputNodeQueuePath).toURI), false )
 
 
 			// change output nodequeue to input queue
-			fs.rename(new Path(new File(outputNodeQueuePath).toURI), new Path(new File(inputNodeQueuePath).toURI))
+			fileSystem.rename(new Path(new File(outputNodeQueuePath).toURI), new Path(new File(inputNodeQueuePath).toURI))
 
 			// check how many nodes to build
-			nodeQueueSize = Source.fromInputStream(fs.open(new Path(new File(inputNodeQueuePath).toURI))).getLines().length
+			nodeQueueSize = Source.fromInputStream(fileSystem.open(new Path(new File(inputNodeQueuePath).toURI))).getLines().length
 
 			totalNodes += nodeQueueSize
 
-      val newLine = System.getProperty("line.separator");
-      var treeData = ""
-      if(level>0){
-        val stream =Source.fromInputStream(fs.open(new Path(new File(outputTreePath).toURI)))
-        treeData = stream.getLines.mkString(newLine)
-        stream.close()
-      }
-
-			val is : InputStream = fs.open(new Path(level_outputTreePath) )
-			val os : OutputStream = fs.create(new Path(outputTreePath), true )
-
-			val fw = new OutputStreamWriter(os)
-			val br : BufferedReader = new BufferedReader(new InputStreamReader(is))
-
-      // write existing tree data
-      if(treeData.length>0){
-        fw.write(treeData)
-        fw.write(newLine)
-      }
-
-      // append new tree data
-      var line = br.readLine()
-      System.out.println(line)
-      do {
-        fw.write(line)
-        fw.write(newLine)
-        line = br.readLine();
-      } while(line != null)
-
-      line = br.readLine()
-			do {
-			    fw.write(line)
-			    fw.write(newLine)
-			    line = br.readLine();
-			} while(line != null)
-				fw.close()
+			var treeData = ""
+			val stream = Source.fromInputStream(fileSystem.open(new Path(new File(level_outputTreePath).toURI)))
+			treeData = stream.getLines.mkString(newLine)
+			stream.close()
+			
+	        treeStreamWriter.write(treeData)
+	        treeStreamWriter.write(newLine)
+	        treeStreamWriter.flush()
 
 			// delete temporal file
-			fs.delete(new Path(new File(level_outputTreePath).toURI), false )
+			fileSystem.delete(new Path(new File(level_outputTreePath).toURI), false )
 
-      // increment for next level
-      level = level + 1;
+			// increment for next level
+			level = level + 1;
 
 		} while (nodeQueueSize > 0)
 
+	    treeStreamWriter.close()
 
 		// stop measuring time
 		val t1 = System.currentTimeMillis
