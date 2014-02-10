@@ -61,18 +61,27 @@ class RandomForestBuilder(val remoteJar : String = null,
 	}
 	
 	def eval(inputFile: String, treeFile: String, outputFile: String) = {
-		val inputPath = inputFile //new File(inputFile).toURI().toString()
-		val treePath = treeFile //new File(treeFile).toURI().toString()
-		val outputPath = outputFile //new File(outputFile).toURI().toString()
+		val inputPath = inputFile
+		val treePath = treeFile
+		val outputPath = outputFile
 
-		val ex = new LocalExecutor()
-		LocalExecutor.setLoggingLevel(Level.ERROR)
+    // prepare executor
+    var ex : PlanExecutor = null
+    if( remoteJar == null ){
+      val localExecutor = new LocalExecutor();
+      localExecutor.start()
+      ex = localExecutor
+      LocalExecutor.setLoggingLevel(Level.ERROR)
+    } else {
+      ex = new RemoteExecutor(remoteJobManager, remoteJobManagerPort, remoteJar );
+    }
+
 		
 		ex.start()
 		val plan = new DecisionTreeEvaluator().getPlan(inputPath, treePath, outputPath)
 		val runtime = ex.executePlan(plan)
 
-		val src = io.Source.fromFile(outputFile)
+    val src =Source.fromInputStream(fs.open(new Path(new File(outputFile).toURI)))
 		try {
 			val lines = src.getLines.map(_.split(",").map(_.toInt)).toList
 
