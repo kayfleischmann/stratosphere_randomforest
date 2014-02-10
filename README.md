@@ -8,6 +8,9 @@ Creating the random forest
 
 **Data format**
 
+Test data should be separated by a new line. Each line should be formatted accordingly:
+[zero based line index] [label] [feature 1 value] [feature 2 value] .. [feature N value]
+
 **Usage with LocalExecutor**
 
 	/**
@@ -15,7 +18,7 @@ Creating the random forest
 	 * [[bigdataproject.scala.eu.stratosphere.ml.randomforest.RandomForestBuilder]] for every level of
 	 * the forest, in case there are nodes to split on that level.
 	 * 
-	 * @param outputPath Folder that will contain the output model at **outputPath\rf_output_tree**
+	 * @param outputPath Folder that will contain the output model at outputPath\rf_output_tree
 	 * 
 	 * @param dataFilePath Test data set. Format:
 	 * [zero based line index] [label] [feature 1 value] [feature 2 value] [feature N value]
@@ -37,6 +40,7 @@ Using the random forest to classify data
 Test data should be in the same format as for creating the random forest.
 
 **Usage with LocalExecutor**
+
 	/** 
 	* Evaluates test data set based on the random forest model.
 	* 
