@@ -34,13 +34,25 @@ class DecisionTreeBuilder(var minNrOfItems: Int,
 		"Usage: [inputPath], [inputNodeQueuePath], [outputNodeQueuePath], [outputTreePath], [number_trees], [outputPath]"
 	}
 
+	/**
+	 * @param inputPath Data set for the model. Format:
+	 * [zero based line index] [label] [feature 1 value] [feature 2 value] [feature N value]
+	 * 
+	 * @param inputNodeQueuePath Nodes to split.
+	 * 
+	 * @param outputNodeQueuePath New nodes resulted from split - input for next iteration.
+	 * 
+	 * @param outputTreePath Random forest model output. Nodes that can be appended to random forest model.
+	 * These nodes either satisfy the stopping condition or contain a feature for split.
+	 * 
+	 * @param outputPath Path for debug information. 
+	 */
 	override def getPlan(args: String*) = {
 		val inputPath = args(0)
 		val inputNodeQueuePath = args(1)
 		val outputNodeQueuePath = args(2)
 		val outputTreePath = args(3)
-		val number_trees = args(4)
-		val outputPath = args(5)
+		val outputPath = args(4)
 
 		val trainingSet = TextFile(inputPath)
 		val inputNodeQueue = TextFile(inputNodeQueuePath)
@@ -357,7 +369,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int,
 
 								  				val selectedFeatureForNode = nodeResult._3.toInt
 												val features = nodeFeatures._3.split(" ").map({ _.toInt }).filter(x => x != selectedFeatureForNode)
-												val featureSpace = generateFeatureSubspace(featureSubspaceCount, features.toBuffer)
+												val featureSpace = DecisionTreeUtils.generateFeatureSubspace(featureSubspaceCount, features.toBuffer)
 												(	nodeResult._1, 
 												    nodeResult._2, 
 												    -1, 
@@ -404,17 +416,6 @@ class DecisionTreeBuilder(var minNrOfItems: Int,
 
 	def quality_function(tau: Double, q: List[Double], qL: List[Double], qR: List[Double]) = {
 		impurity(qL) - tau * impurity(qL) - (1 - tau) * impurity(qR);
-	}
-
-	def generateFeatureSubspace(randomCount: Int, features: Buffer[Int]): Array[Int] = {
-		var arr: Array[Int] = Array()
-		arr = Array(randomCount)
-		arr = Array.fill(randomCount)(0)
-		for (i <- 0 until randomCount) {
-			var random = new Random().nextInt(features.length);
-			arr(i) = features.remove(random);
-		}
-		arr;
 	}
 	
 	def createLabelArray( label : Integer, values : List[(Integer,Integer)])={
