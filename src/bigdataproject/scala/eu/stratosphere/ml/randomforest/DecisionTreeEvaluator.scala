@@ -11,13 +11,27 @@ import eu.stratosphere.api.scala.operators._
 import scala.util.matching.Regex
 import util.Random
   
+/**
+ * Classifies the data set based on the random forest model.
+ * Outputs contains a line for every classification:
+ * "[data item index], [classified label], [actual label from data item]"
+ */
 class DecisionTreeEvaluator() extends Program with ProgramDescription with Serializable {
 
   
   override def getDescription() = {
-	  "Usage: [inputPath] [treePath] [outputPath] ()"
+	  "Usage: [inputPath] [treePath] [outputPath]"
   }
   
+  /**
+   * @param inputPath Data to classify/evaluate. In the same format as training data.
+   * 
+   * @param treePath The random forest model, created by
+   * [[bigdataproject.scala.eu.stratosphere.ml.randomforest.RandomForestBuilder]].build()
+   * 
+   * @param outputPath Classified data, separated by a newline with the format:
+   * "[data item index], [classified label], [actual label from data item]"
+   */
   override def getPlan(args: String*) = {
     val inputPath = args(0)
     val treePath = args(1)
