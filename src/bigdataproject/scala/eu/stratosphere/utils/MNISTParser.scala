@@ -22,7 +22,7 @@ class MNISTParser {
     		var text = ""
 			 if (index > 0)
 			   text += "\r\n"
-    		text += index + "," + label + "," + image.map(line => line.map(arv => arv.toDouble / 256.toDouble).mkString(" ")).mkString(" ")
+    		text += index + " " + label + " " + image.map(line => line.map(arv => arv.toDouble / 256.toDouble).mkString(" ")).mkString(" ")
     		out.print(text);
     		index = index + 1;
     	}

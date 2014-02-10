@@ -14,7 +14,9 @@ import bigdataproject.scala.eu.stratosphere.ml.randomforest.SampleCountEstimator
 import java.net.URI
 
 
-class RandomForestBuilder(val remoteJar : String = null, val remoteJobManager : String = null, val remoteJobManagerPort : Int = 0) {
+class RandomForestBuilder(val remoteJar : String = null,
+                          val remoteJobManager : String = null,
+                          val remoteJobManagerPort : Int = 0 ) {
 
   def getSampleCount( ex : PlanExecutor, filename: String, outputPath : String ): Int = {
     val outputSampleCountPath = outputPath+"/samples_count"
@@ -106,6 +108,8 @@ class RandomForestBuilder(val remoteJar : String = null, val remoteJobManager : 
 
 		// start measuring time
 		val t0 = System.currentTimeMillis
+
+    System.out.println(inputPath)
 
 		var nodesQueue = Buffer[TreeNode]()
 		val totalFeatureCount = getFeatureCount(inputPath)

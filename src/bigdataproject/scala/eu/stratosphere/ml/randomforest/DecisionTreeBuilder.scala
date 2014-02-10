@@ -10,7 +10,10 @@ import eu.stratosphere.compiler.PactCompiler
 
 
 
-class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, var treeLevel : Int, var numHinstogramBuckets : Int = 10) extends Program with ProgramDescription with Serializable {
+class DecisionTreeBuilder(var minNrOfItems: Int,
+                          var featureSubspaceCount: Int,
+                          var treeLevel : Int,
+                          var numHinstogramBuckets : Int = 10 ) extends Program with ProgramDescription with Serializable {
 
 	override def getDescription() = {
 		"Usage: [inputPath] [outputPath] ([number_trees])"
@@ -30,7 +33,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 
 		var c3=0
 		val nodequeue = inputNodeQueue map { line =>
-			val values = line.split(",")
+			val values = line.split( "," )
 			val treeId = values(0).toLong
 			val nodeId = values(1)
 			
@@ -38,6 +41,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 		}
 
 		val samples = trainingSet map { line =>
+
 			val firstSpace = line.indexOf(' ', 0)
 			val secondSpace = line.indexOf(' ', firstSpace + 1)
 			
@@ -80,7 +84,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 				node._4.split(" ").map(n => (sample._3(n.toInt).toDouble, n.toInt)).toList,
 				node._5 //count
 				)
-				
+
 			}
        
 	    nodesAndSamples.contract.setParameter(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.HINT_LOCAL_STRATEGY_HASH_BUILD_SECOND)
@@ -144,7 +148,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 	   //nodeFeatureDistributions.contract.setParameter(PactCompiler.HINT_LOCAL_STRATEGY, PactCompiler.)
 
 		// compute node distributions in a distributed fashion
-									
+
 		val nodeFeatureDistributions_qj = nodeSampleFeatures
   									.map({ x => (x._1, x._2, x._3, createLabelArray(x._5, List( (x._5/*label*/, x._7 /*count*/ )))) })  									
  									.groupBy({x=>(x._1,x._2,x._3)})
@@ -216,7 +220,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 									val bestLabel = p_qj.zipWithIndex.maxBy(_._1)._2
 									val bestLabelProbability = p_qj(bestLabel) / totalSamples.toDouble;
 									
-									var quality = quality_function( tau, 
+									var quality = quality_function( tau,
 																	p_qj.map( _ /totalSamples).toList, 
 																	p_qjL.map( _ /totalSamples).toList, 
 																	p_qjR.map( _ /totalSamples).toList);
@@ -334,7 +338,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 											.where({ x => (x._1, x._2) })	/*join by treeId,nodeId */
 											.isEqualTo { y => (y._1, y._2) }
 											.map({ (nodeResult, nodeFeatures) => 
-											  
+
 								  				val selectedFeatureForNode = nodeResult._3.toInt
 												val features = nodeFeatures._3.split(" ").map({ _.toInt }).filter(x => x != selectedFeatureForNode)
 												val featureSpace = generateFeatureSubspace(featureSubspaceCount, features.toBuffer)
@@ -343,8 +347,8 @@ class DecisionTreeBuilder(var minNrOfItems: Int, var featureSubspaceCount: Int, 
 												    -1, 
 												    -1, 
 												    -1,
-												    nodeResult._6.mkString(" "), 
-												    featureSpace.mkString(" "), 
+												    nodeResult._6.mkString(" "),
+												    featureSpace.mkString(" "),
 												    features.mkString(" "))
 											})
 											
