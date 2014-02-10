@@ -13,74 +13,80 @@ import eu.stratosphere.core.fs.Path
 import bigdataproject.scala.eu.stratosphere.ml.randomforest.SampleCountEstimator
 import java.net.URI
 
-
+/**
+ * Functionality to build and evaluate a random forest.
+ * 
+ * @param remoteJar When set, uses [[eu.stratosphere.client.RemoteExecutor]] to execute functionality.
+ * 
+ * @param remoteJobManager Stratosphere remote job manager URI
+ * 
+ * @param remoteJobManagerPort Stratosphere remote job manager port
+ */
 class RandomForestBuilder(val remoteJar : String = null,
                           val remoteJobManager : String = null,
                           val remoteJobManagerPort : Int = 0 ) {
 
-  def getSampleCount( ex : PlanExecutor, filename: String, outputPath : String ): Int = {
-    val outputSampleCountPath = outputPath+"/samples_count"
-    val plan = new SampleCountEstimator().getPlan( filename, outputSampleCountPath )
-    val runtime = ex.executePlan(plan)
-
-    val fs : FileSystem = FileSystem.get(new File(outputSampleCountPath).toURI)
-    val is : InputStream = fs.open(new Path(outputSampleCountPath) )
-    val br : BufferedReader = new BufferedReader(new InputStreamReader(is))
-    val line=br.readLine()
-    line.toInt
+	/**
+	 * Utility method to get the total sample count (for creating bagging tables)
+	 */
+	def getSampleCount( ex : PlanExecutor, filename: String, outputPath : String ): Int = {
+		val outputSampleCountPath = outputPath+"/samples_count"
+		val plan = new SampleCountEstimator().getPlan( filename, outputSampleCountPath )
+		val runtime = ex.executePlan(plan)
+		
+		val fs : FileSystem = FileSystem.get(new File(outputSampleCountPath).toURI)
+		val is : InputStream = fs.open(new Path(outputSampleCountPath) )
+		val br : BufferedReader = new BufferedReader(new InputStreamReader(is))
+		val line=br.readLine()
+		line.toInt
 	}
+	
+	/**
+	 * Utility method to get the feature count
+	 */
 	def getFeatureCount(filename: String): Int = {
-    val fs : FileSystem = FileSystem.get(new File(filename).toURI)
-    val is : InputStream = fs.open(new Path(filename) )
-    val br : BufferedReader = new BufferedReader(new InputStreamReader(is))
-    val line=br.readLine()
+	    val fs : FileSystem = FileSystem.get(new File(filename).toURI)
+	    val is : InputStream = fs.open(new Path(filename) )
+	    val br : BufferedReader = new BufferedReader(new InputStreamReader(is))
+	    val line=br.readLine()
 		try {
-      line.split(" ").tail.tail.size
+			line.split(" ").tail.tail.size
 		} finally {
 		}
 	}
-
-	def generateFeatureSubspace(randomCount: Int, maxRandomNumber: Int): Array[Int] = {
-		var features = Buffer[Int]();
-		// Generate an arrayList of all Integers
-		for (i <- 0 until maxRandomNumber) {
-			features += i;
-		}
-		generateFeatureSubspace(randomCount, features)
-	}
-
-	def generateFeatureSubspace(randomCount: Int, features: Buffer[Int]): Array[Int] = {
-		var arr: Array[Int] = Array()
-		arr = Array(randomCount)
-		arr = Array.fill(randomCount)(0)
-		for (i <- 0 until randomCount) {
-			val random = new Random().nextInt(features.length);
-			arr(i) = features.remove(random);
-		}
-		arr;
-	}
 	
+	/** 
+	* Evaluates test data set based on the random forest model.
+	* 
+	* @param inputPath Data to classify/evaluate. In the same format as training data.
+	* 
+	* @param treePath The random forest model, created by
+	* [[bigdataproject.scala.eu.stratosphere.ml.randomforest.RandomForestBuilder]].build()
+	* 
+	* @param outputPath Classified data; format:
+	* "[data item index], [classified label], [actual label from data item]"
+	*/
 	def eval(inputFile: String, treeFile: String, outputFile: String) = {
-    val fs : FileSystem = FileSystem.get(new File(inputFile).toURI)
-    val inputPath = inputFile
+	    val fs : FileSystem = FileSystem.get(new File(inputFile).toURI)
+	    val inputPath = inputFile
 		val treePath = treeFile
 		val outputPath = outputFile
 
-    // prepare executor
-    var ex : PlanExecutor = null
-    if( remoteJar == null ){
-      val localExecutor = new LocalExecutor();
-      localExecutor.start()
-      ex = localExecutor
-      LocalExecutor.setLoggingLevel(Level.ERROR)
-    } else {
-      ex = new RemoteExecutor(remoteJobManager, remoteJobManagerPort, remoteJar );
-    }
+		// prepare executor
+	    var ex : PlanExecutor = null
+	    if( remoteJar == null ){
+	      val localExecutor = new LocalExecutor();
+	      localExecutor.start()
+	      ex = localExecutor
+	      LocalExecutor.setLoggingLevel(Level.ERROR)
+	    } else {
+	      ex = new RemoteExecutor(remoteJobManager, remoteJobManagerPort, remoteJar );
+	    }
 
 		val plan = new DecisionTreeEvaluator().getPlan(inputPath, treePath, outputPath)
 		val runtime = ex.executePlan(plan)
 
-    val src =Source.fromInputStream(fs.open(new Path(new File(outputFile).toURI)))
+		val src =Source.fromInputStream(fs.open(new Path(new File(outputFile).toURI)))
 		try {
 			val lines = src.getLines.map(_.split(",").map(_.toInt)).toList
 
@@ -98,26 +104,42 @@ class RandomForestBuilder(val remoteJar : String = null,
 		System.exit(0)
 	}
 
-	def build(outputPath: String, inputPath: String, inputNodeQueuePath: String, outputNodeQueuePath: String, outputTreePath: String, numTrees: Int) = {
+	/**
+	 * Builds a random forest model based on the training data set. Iteratively executes a new
+	 * [[bigdataproject.scala.eu.stratosphere.ml.randomforest.RandomForestBuilder]] for every level of
+	 * the forest, in case there are nodes to split on that level.
+	 * 
+	 * @param outputPath Folder that contains the output model.
+	 * 
+	 * @param inputPath Test data set. Format:
+	 * [zero based line index] [label] [feature 1 value] [feature 2 value] [feature N value]
+	 * 
+	 * @param numTrees Number of trees in the forest
+	 */
+	def build(outputPath: String, inputPath: String, numTrees: Int) : Any = {
+		build(outputPath, inputPath, outputPath + "rf_input_nodequeue", outputPath + "rf_output", outputPath + "rf_output_tree", numTrees)
+	}
+	
+	private def build(outputPath: String, inputPath: String, inputNodeQueuePath: String, outputNodeQueuePath: String, outputTreePath: String, numTrees: Int) : Any = {
 
-    // prepare executor
-    var ex : PlanExecutor = null
-    if( remoteJar == null ){
-      val localExecutor = new LocalExecutor();
-      localExecutor.start()
-      ex = localExecutor
-      LocalExecutor.setLoggingLevel(Level.ERROR)
-    } else {
-      ex = new RemoteExecutor(remoteJobManager, remoteJobManagerPort, remoteJar );
-    }
+	    // prepare executor
+	    var ex : PlanExecutor = null
+	    if( remoteJar == null ){
+	      val localExecutor = new LocalExecutor();
+	      localExecutor.start()
+	      ex = localExecutor
+	      LocalExecutor.setLoggingLevel(Level.ERROR)
+	    } else {
+	      ex = new RemoteExecutor(remoteJobManager, remoteJobManagerPort, remoteJar );
+	    }
 
 
-    val fs : FileSystem = FileSystem.get(new File(outputPath).toURI)
+    	val fs : FileSystem = FileSystem.get(new File(outputPath).toURI)
 
 		// start measuring time
 		val t0 = System.currentTimeMillis
 
-    System.out.println(inputPath)
+		System.out.println(inputPath)
 
 		var nodesQueue = Buffer[TreeNode]()
 		val totalFeatureCount = getFeatureCount(inputPath)
@@ -145,7 +167,7 @@ class RandomForestBuilder(val remoteJar : String = null,
 		var totalNodes = nodesQueue.length
 
 		// do some cleanup stuff
-    fs.delete(new Path(new File(outputTreePath).toURI), false )
+		fs.delete(new Path(new File(outputTreePath).toURI), false )
 
 		val level_outputTreePath = outputTreePath + "CurrentLevel"
 
@@ -160,11 +182,11 @@ class RandomForestBuilder(val remoteJar : String = null,
 			val runtime = ex.executePlan(plan)
 			
 			// delete old input node queue
-      fs.delete(new Path(new File(inputNodeQueuePath).toURI), false )
+			fs.delete(new Path(new File(inputNodeQueuePath).toURI), false )
 
 
 			// change output nodequeue to input queue
-      fs.rename(new Path(new File(outputNodeQueuePath).toURI), new Path(new File(inputNodeQueuePath).toURI))
+			fs.rename(new Path(new File(outputNodeQueuePath).toURI), new Path(new File(inputNodeQueuePath).toURI))
 
 			// check how many nodes to build
 			nodeQueueSize = Source.fromInputStream(fs.open(new Path(new File(inputNodeQueuePath).toURI))).getLines().length
@@ -173,23 +195,23 @@ class RandomForestBuilder(val remoteJar : String = null,
 			level = level + 1;
 			totalNodes += nodeQueueSize
 
-      val is : InputStream = fs.open(new Path(level_outputTreePath) )
-      val os : OutputStream = fs.create(new Path(outputTreePath), true )
-      val newLine = System.getProperty("line.separator");
-      val fw = new OutputStreamWriter(os)
+			val is : InputStream = fs.open(new Path(level_outputTreePath) )
+			val os : OutputStream = fs.create(new Path(outputTreePath), true )
+			val newLine = System.getProperty("line.separator");
+			val fw = new OutputStreamWriter(os)
+			
+			// append output data into global tree-file
+			val br : BufferedReader = new BufferedReader(new InputStreamReader(is))
+			var line=br.readLine()
+			do {
+			    fw.write(line)
+			    fw.write(newLine)
+			    line = br.readLine();
+			} while(line != null)
+				fw.close()
 
-      // append output data into global tree-file
-      val br : BufferedReader = new BufferedReader(new InputStreamReader(is))
-      var line=br.readLine()
-      do {
-          fw.write(line)
-          fw.write(newLine)
-          line = br.readLine();
-      } while(line != null)
-			fw.close()
-
-      // delete temporal file
-      fs.delete(new Path(new File(level_outputTreePath).toURI), false )
+			// delete temporal file
+			fs.delete(new Path(new File(level_outputTreePath).toURI), false )
 
 		} while (nodeQueueSize > 0)
 
@@ -206,37 +228,38 @@ class RandomForestBuilder(val remoteJar : String = null,
 
 		System.exit(0)
 	}
-
-	// write node-queue efficiently to file
-	// line format:
-	// treeID, nodeId, baggingTable, featureSpace, features
+	
+	/**
+	 * Write node-queue efficiently to file.
+	 * Line format: treeID, nodeId, baggingTable, featureSpace, features
+	 */
 	def writeNodes(nodes: Buffer[TreeNode], outputPath: URI, baggingTableSize : Int) {
-    val fs : FileSystem = FileSystem.get(outputPath)
-    val os : OutputStream = fs.create(new Path(outputPath), true )
+	    val fs : FileSystem = FileSystem.get(outputPath)
+	    val os : OutputStream = fs.create(new Path(outputPath), true )
 		val newLine = System.getProperty("line.separator");
-    val fw = new OutputStreamWriter(os)
+    	val fw = new OutputStreamWriter(os)
 		try {
 			for (i <- 0 until nodes.length) {
 				val node = nodes(i)
-        fw.write(node.treeId + ",")
-        fw.write(node.nodeId + ",")
-        fw.write(node.splitFeatureIndex + ",")
-        fw.write(node.splitFeatureValue + ",")
-        fw.write(node.label + ",")
+		        fw.write(node.treeId + ",")
+		        fw.write(node.nodeId + ",")
+		        fw.write(node.splitFeatureIndex + ",")
+		        fw.write(node.splitFeatureValue + ",")
+		        fw.write(node.label + ",")
 				
 				for (i <- 0 until baggingTableSize)
 				{
-          fw.write(Random.nextInt(baggingTableSize) + " ")
+					fw.write(Random.nextInt(baggingTableSize) + " ")
 				}
 
-        fw.write(",")
-        fw.write(node.featureSpace.mkString(" ") + ",")
-        fw.write(node.features.mkString(" "));
+		        fw.write(",")
+		        fw.write(node.featureSpace.mkString(" ") + ",")
+		        fw.write(node.features.mkString(" "));
 				if (i != nodes.length - 1)
-          fw.write(newLine)
+					fw.write(newLine)
 			}
 		} finally {
-      fw.close()
+			fw.close()
 		}
 	}
 

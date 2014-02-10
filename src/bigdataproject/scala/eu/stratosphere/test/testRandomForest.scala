@@ -11,9 +11,6 @@ object testRandomForest {
     new RandomForestBuilder().build(
       "/home/kay/rf/",
       "/home/kay/Desktop/mnist8m.dataset",
-      "/home/kay/rf/rf_input_nodequeue",
-      "/home/kay/rf/rf_output",
-      "/home/kay/rf/rf_output_tree",
       1
     )
 

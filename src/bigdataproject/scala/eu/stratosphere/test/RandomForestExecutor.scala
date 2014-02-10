@@ -24,9 +24,6 @@ object RandomForestExecutor {
 	new RandomForestBuilder(remoteJar,remoteHost,remotePort).build(
 	    path,
 	    data,
-	    path+"/rf_input_nodequeue",
-	    path+"/rf_output",
-	    path+"/rf_output_tree",
 	    args(2).toInt
 	    )
   }

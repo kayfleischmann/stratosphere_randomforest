@@ -357,7 +357,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int,
 
 								  				val selectedFeatureForNode = nodeResult._3.toInt
 												val features = nodeFeatures._3.split(" ").map({ _.toInt }).filter(x => x != selectedFeatureForNode)
-												val featureSpace = generateFeatureSubspace(featureSubspaceCount, features.toBuffer)
+												val featureSpace = DecisionTreeUtils.generateFeatureSubspace(featureSubspaceCount, features.toBuffer)
 												(	nodeResult._1, 
 												    nodeResult._2, 
 												    -1, 
@@ -404,17 +404,6 @@ class DecisionTreeBuilder(var minNrOfItems: Int,
 
 	def quality_function(tau: Double, q: List[Double], qL: List[Double], qR: List[Double]) = {
 		impurity(qL) - tau * impurity(qL) - (1 - tau) * impurity(qR);
-	}
-
-	def generateFeatureSubspace(randomCount: Int, features: Buffer[Int]): Array[Int] = {
-		var arr: Array[Int] = Array()
-		arr = Array(randomCount)
-		arr = Array.fill(randomCount)(0)
-		for (i <- 0 until randomCount) {
-			var random = new Random().nextInt(features.length);
-			arr(i) = features.remove(random);
-		}
-		arr;
 	}
 	
 	def createLabelArray( label : Integer, values : List[(Integer,Integer)])={
