@@ -61,7 +61,8 @@ class RandomForestBuilder(val remoteJar : String = null,
 	}
 	
 	def eval(inputFile: String, treeFile: String, outputFile: String) = {
-		val inputPath = inputFile
+    val fs : FileSystem = FileSystem.get(new File(inputFile).toURI)
+    val inputPath = inputFile
 		val treePath = treeFile
 		val outputPath = outputFile
 
@@ -76,8 +77,6 @@ class RandomForestBuilder(val remoteJar : String = null,
       ex = new RemoteExecutor(remoteJobManager, remoteJobManagerPort, remoteJar );
     }
 
-		
-		ex.start()
 		val plan = new DecisionTreeEvaluator().getPlan(inputPath, treePath, outputPath)
 		val runtime = ex.executePlan(plan)
 
