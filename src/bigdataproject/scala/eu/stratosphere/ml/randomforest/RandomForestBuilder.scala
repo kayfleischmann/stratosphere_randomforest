@@ -29,7 +29,7 @@ class RandomForestBuilder(val remoteJar : String = null,
 	/**
 	 * Utility method to get the total sample count (for creating bagging tables)
 	 */
-	def getSampleCount( ex : PlanExecutor, filename: String, outputPath : String ): Int = {
+	private def getSampleCount( ex : PlanExecutor, filename: String, outputPath : String ): Int = {
 		val outputSampleCountPath = outputPath+"/samples_count"
 		val plan = new SampleCountEstimator().getPlan( filename, outputSampleCountPath )
 		val runtime = ex.executePlan(plan)
@@ -44,7 +44,7 @@ class RandomForestBuilder(val remoteJar : String = null,
 	/**
 	 * Utility method to get the feature count
 	 */
-	def getFeatureCount(filename: String): Int = {
+	private def getFeatureCount(filename: String): Int = {
 	    val fs : FileSystem = FileSystem.get(new File(filename).toURI)
 	    val is : InputStream = fs.open(new Path(filename) )
 	    val br : BufferedReader = new BufferedReader(new InputStreamReader(is))
@@ -177,7 +177,6 @@ class RandomForestBuilder(val remoteJar : String = null,
 				inputNodeQueuePath,
 				outputNodeQueuePath,
 				level_outputTreePath,
-				numTrees.toString,
 				outputPath)
 			val runtime = ex.executePlan(plan)
 			
@@ -233,7 +232,7 @@ class RandomForestBuilder(val remoteJar : String = null,
 	 * Write node-queue efficiently to file.
 	 * Line format: treeID, nodeId, baggingTable, featureSpace, features
 	 */
-	def writeNodes(nodes: Buffer[TreeNode], outputPath: URI, baggingTableSize : Int) {
+	private def writeNodes(nodes: Buffer[TreeNode], outputPath: URI, baggingTableSize : Int) {
 	    val fs : FileSystem = FileSystem.get(outputPath)
 	    val os : OutputStream = fs.create(new Path(outputPath), true )
 		val newLine = System.getProperty("line.separator");

@@ -34,13 +34,25 @@ class DecisionTreeBuilder(var minNrOfItems: Int,
 		"Usage: [inputPath], [inputNodeQueuePath], [outputNodeQueuePath], [outputTreePath], [number_trees], [outputPath]"
 	}
 
+	/**
+	 * @param inputPath Data set for the model. Format:
+	 * [zero based line index] [label] [feature 1 value] [feature 2 value] [feature N value]
+	 * 
+	 * @param inputNodeQueuePath Nodes to split.
+	 * 
+	 * @param outputNodeQueuePath New nodes resulted from split - input for next iteration.
+	 * 
+	 * @param outputTreePath Random forest model output. Nodes that can be appended to random forest model.
+	 * These nodes either satisfy the stopping condition or contain a feature for split.
+	 * 
+	 * @param outputPath Path for debug information. 
+	 */
 	override def getPlan(args: String*) = {
 		val inputPath = args(0)
 		val inputNodeQueuePath = args(1)
 		val outputNodeQueuePath = args(2)
 		val outputTreePath = args(3)
-		val number_trees = args(4)
-		val outputPath = args(5)
+		val outputPath = args(4)
 
 		val trainingSet = TextFile(inputPath)
 		val inputNodeQueue = TextFile(inputNodeQueuePath)
