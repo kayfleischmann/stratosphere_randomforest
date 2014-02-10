@@ -15,7 +15,7 @@ Creating the random forest
 	 * [[bigdataproject.scala.eu.stratosphere.ml.randomforest.RandomForestBuilder]] for every level of
 	 * the forest, in case there are nodes to split on that level.
 	 * 
-	 * @param outputPath Folder that contains the output model.
+	 * @param outputPath Folder that will contain the output model at **outputPath\rf_output_tree**
 	 * 
 	 * @param dataFilePath Test data set. Format:
 	 * [zero based line index] [label] [feature 1 value] [feature 2 value] [feature N value]
@@ -33,11 +33,22 @@ Using the random forest to classify data
 --------------
 
 **Data format**
+
 Test data should be in the same format as for creating the random forest.
 
 **Usage with LocalExecutor**
-
-	new RandomForestBuilder().eval()
+	/** 
+	* Evaluates test data set based on the random forest model.
+	* 
+	* @param inputPath Data to classify/evaluate. In the same format as training data.
+	* 
+	* @param treePath The random forest model, created by
+	* [[bigdataproject.scala.eu.stratosphere.ml.randomforest.RandomForestBuilder]].build()
+	* 
+	* @param outputPath Classified data; format:
+	* "[data item index], [classified label], [actual label from data item]"
+	*/
+	new RandomForestBuilder().eval([inputPath], [treePath], [outputPath])
 
 **Usage on a cluster**
 

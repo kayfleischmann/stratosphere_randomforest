@@ -109,7 +109,7 @@ class RandomForestBuilder(val remoteJar : String = null,
 	 * [[bigdataproject.scala.eu.stratosphere.ml.randomforest.RandomForestBuilder]] for every level of
 	 * the forest, in case there are nodes to split on that level.
 	 * 
-	 * @param outputPath Folder that contains the output model.
+	 * @param outputPath Folder that will contain the output model at outputPath\rf_output_tree
 	 * 
 	 * @param inputPath Test data set. Format:
 	 * [zero based line index] [label] [feature 1 value] [feature 2 value] [feature N value]
