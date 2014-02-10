@@ -9,14 +9,29 @@ import scala.collection.mutable.Buffer
 import eu.stratosphere.compiler.PactCompiler
 
 
-
+/**
+ * Parses a queue of nodes and splits them. The new nodes are sent to the outputNodeQueue.
+ * If stopping condition is met then node is written to outputTree path, together with the label
+ * that occurs the most in that nodes sample set/bagging table.
+ * 
+ * @param minNrOfItems The minimum number of items in the bagging table required to split
+ * a node. Used as one of the stopping conditions.
+ * 
+ * @param featureSubspaceCount The number of features to take and evaluate at every split. Based on the
+ * evaluation, the best feature will be chosen to split the node. Recommended value is sqrt(total feature count).
+ * 
+ * @param treeLevel For debugging purposes. Files rf_bestsplits_[treeLevel], rf_nodedistributions_[treeLevel], rf_nodehistograms[treeLevel]
+ * will be created with intermediate data.
+ * 
+ * @param numHistogramBuckets Bucket count for each histogram.
+ */
 class DecisionTreeBuilder(var minNrOfItems: Int,
                           var featureSubspaceCount: Int,
                           var treeLevel : Int,
-                          var numHinstogramBuckets : Int = 10 ) extends Program with ProgramDescription with Serializable {
+                          var numHistogramBuckets : Int = 10 ) extends Program with ProgramDescription with Serializable {
 
 	override def getDescription() = {
-		"Usage: [inputPath] [outputPath] ([number_trees])"
+		"Usage: [inputPath], [inputNodeQueuePath], [outputNodeQueuePath], [outputTreePath], [number_trees], [outputPath]"
 	}
 
 	override def getPlan(args: String*) = {
@@ -25,6 +40,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int,
 		val outputNodeQueuePath = args(2)
 		val outputTreePath = args(3)
 		val number_trees = args(4)
+		val outputPath = args(5)
 
 		val trainingSet = TextFile(inputPath)
 		val inputNodeQueue = TextFile(inputNodeQueuePath)
@@ -100,7 +116,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int,
 										
 		val nodeSampleFeatureHistograms = nodeSampleFeatures
 							.map({ case ( treeId,nodeId,featureIndex,sampleIndex,label,featureValue, count) =>
-									( treeId,nodeId,featureIndex,new Histogram(featureIndex, numHinstogramBuckets).update(featureValue, count) ) 
+									( treeId,nodeId,featureIndex,new Histogram(featureIndex, numHistogramBuckets).update(featureValue, count) ) 
 									})
 								
 		var mergeCount = 0
@@ -113,7 +129,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int,
 									}
 								  	(left._1, left._2, left._3, left._4.merge(right._4)) } )
 							.flatMap( { nodeHistogram => 
-									nodeHistogram._4.uniform(numHinstogramBuckets)
+									nodeHistogram._4.uniform(numHistogramBuckets)
 													.map({ splitCandidate => 
 													  		( 	nodeHistogram._1, /*treeId */
 													  			nodeHistogram._2, /*nodeId*/
@@ -360,13 +376,13 @@ class DecisionTreeBuilder(var minNrOfItems: Int,
 		val nodeQueueSink = nodeResultsWithFeatures .write(outputNodeQueuePath, CsvOutputFormat(newLine, ","))
 		
 		// debug
-		val bestSplitSink = bestTreeNodeSplits .write("/home/kay/rf/rf_bestsplits_"+treeLevel, CsvOutputFormat(newLine, ","))
+		val bestSplitSink = bestTreeNodeSplits .write(outputPath + "rf_bestsplits_" + treeLevel, CsvOutputFormat(newLine, ","))
 		
-		val nodeDistributionsSink =  nodeDistributions .write("/home/kay/rf/rf_nodedistributions_"+treeLevel, CsvOutputFormat(newLine, ","))
+		val nodeDistributionsSink =  nodeDistributions .write(outputPath + "rf_nodedistributions_" + treeLevel, CsvOutputFormat(newLine, ","))
 
 		val nodeHistogramsSink = nodeHistograms
 									.map({x=>(x._1, x._2, x._3, x._4.toString )})
-									.write("/home/kay/rf/rf_nodehistograms"+treeLevel, CsvOutputFormat(newLine, ","))
+									.write(outputPath + "rf_nodehistograms" + treeLevel, CsvOutputFormat(newLine, ","))
 
 		
 		new ScalaPlan(Seq(treeLevelSink,nodeQueueSink,bestSplitSink,nodeDistributionsSink,nodeHistogramsSink ))

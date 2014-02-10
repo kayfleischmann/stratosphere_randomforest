@@ -156,7 +156,8 @@ class RandomForestBuilder(val remoteJar : String = null,
 				inputNodeQueuePath,
 				outputNodeQueuePath,
 				level_outputTreePath,
-				numTrees.toString)
+				numTrees.toString,
+				outputPath)
 			val runtime = ex.executePlan(plan)
 			
 			// delete old input node queue
