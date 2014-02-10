@@ -9,6 +9,7 @@ Creating the random forest
 **Data format**
 
 Test data should be separated by a new line. Each line should be formatted accordingly:
+
 [zero based line index] [label] [feature 1 value] [feature 2 value] .. [feature N value]
 
 **Usage with LocalExecutor**
