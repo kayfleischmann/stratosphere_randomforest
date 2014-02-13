@@ -206,8 +206,8 @@ class DecisionTreeBuilder(var minNrOfItems: Int,
 								.where( { x => (x._1,x._2, x._3) })
 								.isEqualTo { x =>  (x._1,x._2, x._3)}
 								.flatMap({ (qj, qjL) => 
-								      var node1 = qj.next
-									  var empty_node : (Long,String,Int,Double,String) =  (0, "0", 0, 0.0, "null")
+								    val node1 = qj.next
+									  val empty_node : (Long,String,Int,Double,String) =  (0, "0", 0, 0.0, "null")
 									  if( qjL.hasNext ){
 									    qjL.map({ node  =>
 									      	(node1._1, node1._2, node1._3, node._4,  node1,  node )
@@ -220,7 +220,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int,
 								.where( { x => (x._1,x._2, x._3, x._4) })
 								.isEqualTo { x =>  (x._1,x._2, x._3, x._4)}
 								.map({ (qjqjL, qjR) => 
-								  var node12 = qjqjL.next
+								  val node12 = qjqjL.next
 								  var node3 : (Long,String,Int,Double,String) = (0, "0", 0, 0.0, "null")
 								  if( qjR.hasNext )
 								     node3 = qjR.next
@@ -231,7 +231,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int,
 								  	c2=c2+1;
 							  		System.out.println("nodeDistributions counter "+c2)
 								  	
-									var p_qj = qj._4.split(" ").map(_.toDouble )
+									val p_qj = qj._4.split(" ").map(_.toDouble )
 									var p_qjL = Array[Double]()
 									var p_qjR = Array[Double]()
 
@@ -248,7 +248,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int,
 									val bestLabel = p_qj.zipWithIndex.maxBy(_._1)._2
 									val bestLabelProbability = p_qj(bestLabel) / totalSamples.toDouble;
 									
-									var quality = quality_function( tau,
+									val quality = quality_function( tau,
 																	p_qj.map( _ /totalSamples).toList, 
 																	p_qjL.map( _ /totalSamples).toList, 
 																	p_qjR.map( _ /totalSamples).toList);
@@ -307,7 +307,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int,
 								  	if(c4%20000==0)
 								  		System.out.println("nodeWithBaggingTable counter "+c4)
 								  	
-								  	var sampleFeature = nodeAndSamples._5.find(x=>x._2==bestSplits._3._1)
+								  	val sampleFeature = nodeAndSamples._5.find(x=>x._2==bestSplits._3._1)
 
 							  		(	bestSplits._1 /*treeId*/, 
 							  			bestSplits._2 /*nodeId*/, 
@@ -396,10 +396,8 @@ class DecisionTreeBuilder(var minNrOfItems: Int,
 									.map({x=>(x._1, x._2, x._3, x._4.toString )})
 									.write(outputPath + "rf_nodehistograms" + treeLevel, CsvOutputFormat(newLine, ","))
 
-		
 		new ScalaPlan(Seq(treeLevelSink,nodeQueueSink,bestSplitSink,nodeDistributionsSink,nodeHistogramsSink ))
 	}
-
 
 	def impurity(q: List[Double]) = {
 		gini(q)

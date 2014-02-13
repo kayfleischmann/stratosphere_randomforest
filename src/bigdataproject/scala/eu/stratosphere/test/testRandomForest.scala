@@ -48,11 +48,10 @@ class testRandomForest extends JUnitSuite  {
 
     val percentage =
       new RandomForestBuilder().eval(
-        testTrainingSet,
+        testEvaluationSet,
         testFolder+"rf_output_tree",
         testFolder+"rf_output_evaluation"
       )
-    System.out.println("percentage:"+percentage)
 
   }
 
@@ -60,7 +59,7 @@ class testRandomForest extends JUnitSuite  {
   @After
   def cleanup = {
     System.out.println("cleanup")
-    //folder.delete()
+    folder.delete()
   }
 
 }

@@ -67,8 +67,8 @@ class RandomForestBuilder(val remoteJar : String = null,
 	* "[data item index], [classified label], [actual label from data item]"
 	*/
 	def eval(inputFile: String, treeFile: String, outputFile: String) = {
-	    val fs : FileSystem = FileSystem.get(new File(inputFile).toURI)
-	    val inputPath = inputFile
+	  val fs : FileSystem = FileSystem.get(new File(inputFile).toURI)
+	  val inputPath = inputFile
 		val treePath = treeFile
 		val outputPath = outputFile
 
@@ -86,6 +86,7 @@ class RandomForestBuilder(val remoteJar : String = null,
 		val plan = new DecisionTreeEvaluator().getPlan(inputPath, treePath, outputPath)
 		val runtime = ex.executePlan(plan)
 
+    var percentage = 0.0
 		val src =Source.fromInputStream(fs.open(new Path(new File(outputFile).toURI)))
 		try {
 			val lines = src.getLines.map(_.split(",").map(_.toInt)).toList
@@ -97,12 +98,15 @@ class RandomForestBuilder(val remoteJar : String = null,
 			val wrong = lines.filter(x => x(1) != x(2)).length
 			System.out.println("wrong: " + wrong)
 			System.out.println("percentage: " + (correct.toDouble * 100 / lines.length.toDouble))
-		} finally {
+
+      percentage = (correct.toDouble * 100 / lines.length.toDouble)
+
+
+    } finally {
 			src.close()
 		}
 
-    //(correct.toDouble * 100 / lines.length.toDouble)
-		System.exit(0)
+    percentage
 	}
 
 	/**
@@ -122,20 +126,19 @@ class RandomForestBuilder(val remoteJar : String = null,
 	}
 	
 	private def build(outputPath: String, inputPath: String, inputNodeQueuePath: String, outputNodeQueuePath: String, outputTreePath: String, numTrees: Int) : Any = {
+	  // prepare executor
+	  var ex : PlanExecutor = null
+	  if( remoteJar == null ){
+	    val localExecutor = new LocalExecutor();
+	    localExecutor.start()
+	    ex = localExecutor
+	    LocalExecutor.setLoggingLevel(Level.ERROR)
+	  } else {
+	    ex = new RemoteExecutor(remoteJobManager, remoteJobManagerPort, remoteJar );
+	  }
 
-	    // prepare executor
-	    var ex : PlanExecutor = null
-	    if( remoteJar == null ){
-	      val localExecutor = new LocalExecutor();
-	      localExecutor.start()
-	      ex = localExecutor
-	      LocalExecutor.setLoggingLevel(Level.ERROR)
-	    } else {
-	      ex = new RemoteExecutor(remoteJobManager, remoteJobManagerPort, remoteJar );
-	    }
-
-	    //TODO: Use DecisionTreeUtils.preParseURI() here?
-    	val fileSystem : FileSystem = FileSystem.get(new File(outputPath).toURI)
+	  //TODO: Use DecisionTreeUtils.preParseURI() here?
+    val fileSystem : FileSystem = FileSystem.get(new File(outputPath).toURI)
 		val newLine = System.getProperty("line.separator");
 
 		// start measuring time
@@ -176,11 +179,12 @@ class RandomForestBuilder(val remoteJar : String = null,
 		
 		do {
 			val plan = new DecisionTreeBuilder(70, featureSubspaceCount, level ).getPlan(
-				inputPath,
-				inputNodeQueuePath,
-				outputNodeQueuePath,
-				level_outputTreePath,
-				outputPath)
+                  inputPath,
+                  inputNodeQueuePath,
+                  outputNodeQueuePath,
+                  level_outputTreePath,
+                  outputPath)
+
 			val runtime = ex.executePlan(plan)
 			
 			// delete old input node queue
@@ -200,9 +204,9 @@ class RandomForestBuilder(val remoteJar : String = null,
 			treeData = stream.getLines.mkString(newLine)
 			stream.close()
 			
-	        treeStreamWriter.write(treeData)
-	        treeStreamWriter.write(newLine)
-	        treeStreamWriter.flush()
+      treeStreamWriter.write(treeData)
+      treeStreamWriter.write(newLine)
+      treeStreamWriter.flush()
 
 			// delete temporal file
 			fileSystem.delete(new Path(new File(level_outputTreePath).toURI), false )
@@ -212,19 +216,17 @@ class RandomForestBuilder(val remoteJar : String = null,
 
 		} while (nodeQueueSize > 0)
 
-	    treeStreamWriter.close()
+    treeStreamWriter.close()
 
 		// stop measuring time
 		val t1 = System.currentTimeMillis
 
-		System.out.println("statistics");
-		System.out.println("build-time: " + ((t1 - t0) / 1000.0) / 60.0 + "mins")
-		System.out.println("samples: " + sampleCount)
-		System.out.println("features per sample: " + totalFeatureCount)
-		System.out.println("trees: " + numTrees)
-		System.out.println("tree-levels (iterations): " + (level - 1))
-
-		System.exit(0)
+		println("statistics");
+		println("build-time: " + ((t1 - t0) / 1000.0) / 60.0 + "mins")
+		println("samples: " + sampleCount)
+		println("features per sample: " + totalFeatureCount)
+		println("trees: " + numTrees)
+		println("tree-levels (iterations): " + (level - 1))
 	}
 	
 	/**
@@ -245,14 +247,12 @@ class RandomForestBuilder(val remoteJar : String = null,
 		        fw.write(node.splitFeatureValue + ",")
 		        fw.write(node.label + ",")
 				
-				for (i <- 0 until baggingTableSize)
-				{
+				for (i <- 0 until baggingTableSize){
 					fw.write(Random.nextInt(baggingTableSize) + " ")
 				}
-
-		        fw.write(",")
-		        fw.write(node.featureSpace.mkString(" ") + ",")
-		        fw.write(node.features.mkString(" "));
+        fw.write(",")
+        fw.write(node.featureSpace.mkString(" ") + ",")
+        fw.write(node.features.mkString(" "));
 				if (i != nodes.length - 1)
 					fw.write(newLine)
 			}
