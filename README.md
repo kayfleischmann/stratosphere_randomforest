@@ -58,3 +58,16 @@ Test data should be in the same format as for creating the random forest.
 **Usage on a cluster**
 
 	stratosphere run ... ...
+	
+	
+Building trees using jars
+-------------
+java -cp /home/kay/stratosphere/lib/*:stratosphere_randomforest.jar bigdataproject.scala.eu.stratosphere.ml.randomforest.RandomForestExecutor dest-path data-src build number-trees [remoteJar remoteHost remotePort]
+
+
+Evaluate random-forst using jars
+-------------
+java -cp /home/kay/stratosphere/lib/*:stratosphere_randomforest.jar bigdataproject.scala.eu.stratosphere.ml.randomforest.RandomForestExecutor dest-path data-src eval number-trees [remoteJar remoteHost remotePort]
+
+
+
