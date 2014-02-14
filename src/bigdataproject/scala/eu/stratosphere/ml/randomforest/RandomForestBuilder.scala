@@ -70,17 +70,15 @@ class RandomForestBuilder(val remoteJar : String = null,
     val fs : FileSystem = FileSystem.get(new URI(outputDir))
     val fileDetails = fs.getFileStatus(new Path(outputDir))
     if( !fileDetails.isDir ){
-      val stream = Source.fromInputStream(fs.open(new Path(new URI(outputDir))))
-      val output = stream.getLines()
-      stream.close()
-      output
+      Source.fromInputStream(fs.open(new Path(new URI(outputDir)))).getLines
     }else {
       val lines = scala.collection.mutable.MutableList[String]()
 
       for( file <- fs.listStatus(new Path(new URI(outputDir))) ){
         val stream = Source.fromInputStream(fs.open(file.getPath))
-        for( l <- stream.getLines() )
+        for( l <- stream.getLines() ){
           lines.+=( l )
+        }
         stream.close()
       }
 
@@ -244,7 +242,6 @@ class RandomForestBuilder(val remoteJar : String = null,
                   outputNodeQueuePath,
                   level_outputTreePath,
                   outputPath)
-      plan.setDefaultParallelism(5)
 			val runtime = ex.executePlan(plan)
 			
 			// delete old input node queue
@@ -255,7 +252,8 @@ class RandomForestBuilder(val remoteJar : String = null,
 			fileSystem.rename(new Path(new URI(outputNodeQueuePath)), new Path(new URI(inputNodeQueuePath)))
 
 			// check how many nodes to build
-			nodeQueueSize = getPathSize(inputNodeQueuePath) // mergeOutputResults(inputNodeQueuePath).length
+			nodeQueueSize = mergeOutputResults(inputNodeQueuePath).size // mergeOutputResults(inputNodeQueuePath).length
+
 
 			totalNodes += nodeQueueSize
 
