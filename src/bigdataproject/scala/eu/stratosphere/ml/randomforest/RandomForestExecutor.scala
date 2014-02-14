@@ -10,6 +10,9 @@ object RandomForestExecutor {
       return
     }
     val mode=args(0)
+    for( i <- args ){
+      System.out.println(i)
+    }
 
     if(mode == "build"){
       val path=args(1)

@@ -9,6 +9,7 @@ import org.apache.log4j.Level
 import eu.stratosphere.client.PlanExecutor
 import eu.stratosphere.client.RemoteExecutor
 import eu.stratosphere.core.fs.FileSystem
+import eu.stratosphere.core.fs.FileStatus
 import eu.stratosphere.core.fs.Path
 import bigdataproject.scala.eu.stratosphere.ml.randomforest.SampleCountEstimator
 import java.net.URI
@@ -30,22 +31,69 @@ class RandomForestBuilder(val remoteJar : String = null,
 	 * Utility method to get the total sample count (for creating bagging tables)
 	 */
 	private def getSampleCount( ex : PlanExecutor, filename: String, outputPath : String ): Int = {
-		val outputSampleCountPath = outputPath+"/samples_count"
+		val outputSampleCountPath = outputPath+"/rf_samples_count"
 		val plan = new SampleCountEstimator().getPlan( filename, outputSampleCountPath )
+    plan.setDefaultParallelism(1)
 		val runtime = ex.executePlan(plan)
 		
-		val fs : FileSystem = FileSystem.get(new File(outputSampleCountPath).toURI)
+		val fs : FileSystem = FileSystem.get(new URI(outputSampleCountPath))
 		val is : InputStream = fs.open(new Path(outputSampleCountPath) )
 		val br : BufferedReader = new BufferedReader(new InputStreamReader(is))
 		val line=br.readLine()
 		line.toInt
 	}
-	
-	/**
+
+
+
+  private def getPathSize( dir : String ) = {
+    val fs : FileSystem = FileSystem.get(new URI(dir))
+    val fileDetails = fs.getFileStatus(new Path(dir))
+    if( !fileDetails.isDir ){
+      val stream = Source.fromInputStream(fs.open(new Path(new URI(dir))))
+      val output = stream.size
+      stream.close()
+      output
+    }else {
+      var size : Int = 0
+      for( file <- fs.listStatus(new Path(new URI(dir))) ){
+        val stream = Source.fromInputStream(fs.open(file.getPath))
+        size = size + stream.size
+        stream.close()
+      }
+
+      size
+    }
+  }
+
+
+  private def mergeOutputResults( outputDir : String ) = {
+    val fs : FileSystem = FileSystem.get(new URI(outputDir))
+    val fileDetails = fs.getFileStatus(new Path(outputDir))
+    if( !fileDetails.isDir ){
+      val stream = Source.fromInputStream(fs.open(new Path(new URI(outputDir))))
+      val output = stream.getLines()
+      stream.close()
+      output
+    }else {
+      val lines = scala.collection.mutable.MutableList[String]()
+
+      for( file <- fs.listStatus(new Path(new URI(outputDir))) ){
+        val stream = Source.fromInputStream(fs.open(file.getPath))
+        for( l <- stream.getLines() )
+          lines.+=( l )
+        stream.close()
+      }
+
+      lines.toList
+    }
+  }
+
+
+  /**
 	 * Utility method to get the feature count
 	 */
 	private def getFeatureCount(filename: String): Int = {
-	    val fs : FileSystem = FileSystem.get(new File(filename).toURI)
+	    val fs : FileSystem = FileSystem.get(new URI(filename))
 	    val is : InputStream = fs.open(new Path(filename) )
 	    val br : BufferedReader = new BufferedReader(new InputStreamReader(is))
 	    val line=br.readLine()
@@ -54,6 +102,7 @@ class RandomForestBuilder(val remoteJar : String = null,
 		} finally {
 		}
 	}
+
 	
 	/** 
 	* Evaluates test data set based on the random forest model.
@@ -67,7 +116,7 @@ class RandomForestBuilder(val remoteJar : String = null,
 	* "[data item index], [classified label], [actual label from data item]"
 	*/
 	def eval(inputFile: String, treeFile: String, outputFile: String) = {
-	  val fs : FileSystem = FileSystem.get(new File(inputFile).toURI)
+	  val fs : FileSystem = FileSystem.get(new URI(inputFile))
 	  val inputPath = inputFile
 		val treePath = treeFile
 		val outputPath = outputFile
@@ -79,15 +128,17 @@ class RandomForestBuilder(val remoteJar : String = null,
 	      localExecutor.start()
 	      ex = localExecutor
 	      LocalExecutor.setLoggingLevel(Level.ERROR)
+        println("Stratosphere using local executor")
 	    } else {
 	      ex = new RemoteExecutor(remoteJobManager, remoteJobManagerPort, remoteJar );
+        println("Stratosphere using remotee xecutor ip:"+remoteJobManager+" port:"+remoteJobManagerPort+" jar:"+remoteJar)
 	    }
 
 		val plan = new DecisionTreeEvaluator().getPlan(inputPath, treePath, outputPath)
 		val runtime = ex.executePlan(plan)
 
     var percentage = 0.0
-		val src =Source.fromInputStream(fs.open(new Path(new File(outputFile).toURI)))
+		val src =Source.fromInputStream(fs.open(new Path(new URI(outputFile))))
 		try {
 			val lines = src.getLines.map(_.split(",").map(_.toInt)).toList
 
@@ -133,21 +184,30 @@ class RandomForestBuilder(val remoteJar : String = null,
 	    localExecutor.start()
 	    ex = localExecutor
 	    LocalExecutor.setLoggingLevel(Level.ERROR)
-	  } else {
+      System.out.println("Stratosphere using local executor")
+    } else {
 	    ex = new RemoteExecutor(remoteJobManager, remoteJobManagerPort, remoteJar );
+      System.out.println("Stratosphere using remotee xecutor ip:"+remoteJobManager+" port:"+remoteJobManagerPort+" jar:"+remoteJar)
 	  }
 
 	  //TODO: Use DecisionTreeUtils.preParseURI() here?
-    val fileSystem : FileSystem = FileSystem.get(new File(outputPath).toURI)
+    val fileSystem : FileSystem = FileSystem.get( new URI(outputPath) )
 		val newLine = System.getProperty("line.separator");
 
 		// start measuring time
 		val t0 = System.currentTimeMillis
 		System.out.println(inputPath)
 
-		var nodesQueue = Buffer[TreeNode]()
+    System.out.println(outputPath)
+    System.out.println(new URI(outputPath) )
+
+
+    var nodesQueue = Buffer[TreeNode]()
 		val totalFeatureCount = getFeatureCount(inputPath)
 		val featureSubspaceCount = Math.round(Math.log(totalFeatureCount).toFloat + 1);
+
+    System.out.println("total feature count:"+totalFeatureCount)
+
 
 		// add node to build for each tree
 		val sampleCount = getSampleCount(ex, inputPath, outputPath)
@@ -161,7 +221,7 @@ class RandomForestBuilder(val remoteJar : String = null,
 		} //for
 
 		// write the initial nodes to file to join in the iteration
-		writeNodes(nodesQueue, new File(inputNodeQueuePath).toURI(), sampleCount);
+		writeNodes(nodesQueue, new URI(inputNodeQueuePath), sampleCount);
 
 		// if next level, read from file which node has to be split
 		// each line treeId,nodeId, featuresIndicies, baggingTable
@@ -171,7 +231,7 @@ class RandomForestBuilder(val remoteJar : String = null,
 		var totalNodes = nodesQueue.length
 
 		// do some cleanup stuff
-		fileSystem.delete(new Path(new File(outputTreePath).toURI), false )
+		fileSystem.delete(new Path(new URI(outputTreePath)), false )
 
 		val level_outputTreePath = outputTreePath + "CurrentLevel"
 		val treeStream : OutputStream = fileSystem.create(new Path(outputTreePath), true )
@@ -184,32 +244,32 @@ class RandomForestBuilder(val remoteJar : String = null,
                   outputNodeQueuePath,
                   level_outputTreePath,
                   outputPath)
-
+      plan.setDefaultParallelism(5)
 			val runtime = ex.executePlan(plan)
 			
 			// delete old input node queue
-			fileSystem.delete(new Path(new File(inputNodeQueuePath).toURI), false )
+			fileSystem.delete(new Path(new URI(inputNodeQueuePath)), true )
 
 
 			// change output nodequeue to input queue
-			fileSystem.rename(new Path(new File(outputNodeQueuePath).toURI), new Path(new File(inputNodeQueuePath).toURI))
+			fileSystem.rename(new Path(new URI(outputNodeQueuePath)), new Path(new URI(inputNodeQueuePath)))
 
 			// check how many nodes to build
-			nodeQueueSize = Source.fromInputStream(fileSystem.open(new Path(new File(inputNodeQueuePath).toURI))).getLines().length
+			nodeQueueSize = getPathSize(inputNodeQueuePath) // mergeOutputResults(inputNodeQueuePath).length
 
 			totalNodes += nodeQueueSize
 
 			var treeData = ""
-			val stream = Source.fromInputStream(fileSystem.open(new Path(new File(level_outputTreePath).toURI)))
-			treeData = stream.getLines.mkString(newLine)
-			stream.close()
+			treeData = mergeOutputResults(level_outputTreePath).mkString(newLine)
+
+      System.out.println(treeData)
 			
       treeStreamWriter.write(treeData)
       treeStreamWriter.write(newLine)
       treeStreamWriter.flush()
 
 			// delete temporal file
-			fileSystem.delete(new Path(new File(level_outputTreePath).toURI), false )
+			fileSystem.delete(new Path(new URI(level_outputTreePath)), true )
 
 			// increment for next level
 			level = level + 1;
