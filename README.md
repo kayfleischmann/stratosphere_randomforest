@@ -62,7 +62,7 @@ Test data should be in the same format as for creating the random forest.
 	
 Building trees using jars
 -------------
-java -cp /stratosphere-path/stratosphere/lib/*:stratosphere_randomforest.jar bigdataproject.scala.eu.stratosphere.ml.randomforest.RandomForestExecutor build numb-trees dest-path data-src [remoteJar remoteHost remotePort]
+java -cp /stratosphere-path/stratosphere/lib/*:stratosphere_randomforest.jar bigdataproject.scala.eu.stratosphere.ml.randomforest.RandomForestExecutor build dest-path data-src numb-trees [remoteJar remoteHost remotePort]
 
 
 Evaluate random-forst using jars
