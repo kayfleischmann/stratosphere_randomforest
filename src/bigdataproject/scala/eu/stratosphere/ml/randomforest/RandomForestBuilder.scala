@@ -35,14 +35,13 @@ class RandomForestBuilder(val remoteJar : String = null,
 	private def getSampleCount( ex : PlanExecutor, filename: String, outputPath : String ): Int = {
 		val outputSampleCountPath = outputPath+"/rf_samples_count"
 		val plan = new SampleCountEstimator().getPlan( filename, outputSampleCountPath )
-    plan.setDefaultParallelism(1)
 		val runtime = ex.executePlan(plan)
-		
-		val fs : FileSystem = FileSystem.get(new URI(outputSampleCountPath))
-		val is : InputStream = fs.open(new Path(outputSampleCountPath) )
-		val br : BufferedReader = new BufferedReader(new InputStreamReader(is))
-		val line=br.readLine()
-		line.toInt
+
+    var count=0
+    val lines = mergeOutputResults(outputSampleCountPath)
+    for( l <- lines )
+      count += l.toInt
+   count
 	}
 
 
@@ -211,6 +210,7 @@ class RandomForestBuilder(val remoteJar : String = null,
 
 		// add node to build for each tree
 		val sampleCount = getSampleCount(ex, inputPath, outputPath)
+    System.out.println("samples "+sampleCount)
 		for (treeId <- 0 until numTrees) {
 			// TODO: the features left is the whole set minus still used best-splits
 			val features = (0 until totalFeatureCount).toArray

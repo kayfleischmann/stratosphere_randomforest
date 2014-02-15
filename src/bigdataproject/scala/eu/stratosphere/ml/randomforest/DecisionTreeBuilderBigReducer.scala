@@ -178,7 +178,6 @@ class DecisionTreeBuilderBigReducer(var minNrOfItems: Int, var featureSubspaceCo
 
 
     val finalTreeNodesSink = finaTreeNodes
-                              .degreeOfParallelism(1)
                               .write(outputTreePath, CsvOutputFormat(newLine, ","))
 
     // prepare the treeId,nodeId and featureList for next round
@@ -214,7 +213,6 @@ class DecisionTreeBuilderBigReducer(var minNrOfItems: Int, var featureSubspaceCo
 
     // output nodes to build if
     val nodeQueueSink = nodeResultsWithFeatures
-      .degreeOfParallelism(1)
       .write(outputNodeQueuePath, CsvOutputFormat(newLine, ","))
 
     val out1 = nodeResultsWithFeatures
