@@ -13,6 +13,8 @@ import eu.stratosphere.core.fs.FileStatus
 import eu.stratosphere.core.fs.Path
 import bigdataproject.scala.eu.stratosphere.ml.randomforest.SampleCountEstimator
 import java.net.URI
+import eu.stratosphere.api.common.Plan
+
 
 /**
  * Functionality to build and evaluate a random forest.
@@ -170,11 +172,11 @@ class RandomForestBuilder(val remoteJar : String = null,
 	 * 
 	 * @param numTrees Number of trees in the forest
 	 */
-	def build(outputPath: String, inputPath: String, numTrees: Int) : Any = {
-		build(outputPath, inputPath, outputPath + "rf_input_nodequeue", outputPath + "rf_output", outputPath + "rf_output_tree", numTrees)
+	def build(outputPath: String, inputPath: String, numTrees: Int, build_strategy : String = "streaming") : Any = {
+		build(outputPath, inputPath, outputPath + "rf_input_nodequeue", outputPath + "rf_output", outputPath + "rf_output_tree", numTrees, build_strategy)
 	}
 	
-	private def build(outputPath: String, inputPath: String, inputNodeQueuePath: String, outputNodeQueuePath: String, outputTreePath: String, numTrees: Int) : Any = {
+	private def build(outputPath: String, inputPath: String, inputNodeQueuePath: String, outputNodeQueuePath: String, outputTreePath: String, numTrees: Int, build_strategy : String) : Any = {
 	  // prepare executor
 	  var ex : PlanExecutor = null
 	  if( remoteJar == null ){
@@ -237,12 +239,27 @@ class RandomForestBuilder(val remoteJar : String = null,
 		
 		do {
       System.out.println("Iteration "+level)
-      val plan = new DecisionTreeBuilder(70, featureSubspaceCount, level ).getPlan(
+      var plan : Plan = null
+      if (build_strategy == "streaming") {
+        plan = new DecisionTreeBuilderStreaming(70, featureSubspaceCount, level ).getPlan(
                   inputPath,
                   inputNodeQueuePath,
                   outputNodeQueuePath,
                   level_outputTreePath,
-                  outputPath)
+                  outputPath )
+      }
+      else if (build_strategy == "bigreducer") {
+        plan = new DecisionTreeBuilderBigReducer(70, featureSubspaceCount, level ).getPlan(
+          inputPath,
+          inputNodeQueuePath,
+          outputNodeQueuePath,
+          level_outputTreePath,
+          outputPath )
+      } else {
+        System.out.println("ERROR: unknown decision tree build strategy")
+        System.exit(0)
+      }
+
 			val runtime = ex.executePlan(plan)
 			
 			// delete old input node queue

@@ -25,7 +25,7 @@ import eu.stratosphere.compiler.PactCompiler
  * 
  * @param numHistogramBuckets Bucket count for each histogram.
  */
-class DecisionTreeBuilder(var minNrOfItems: Int,
+class DecisionTreeBuilderStreaming(var minNrOfItems: Int,
                           var featureSubspaceCount: Int,
                           var treeLevel : Int,
                           var numHistogramBuckets : Int = 10 ) extends Program with ProgramDescription with Serializable {

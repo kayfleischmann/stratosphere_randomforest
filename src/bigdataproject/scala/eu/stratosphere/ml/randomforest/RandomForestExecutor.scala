@@ -15,24 +15,27 @@ object RandomForestExecutor {
     }
 
     if(mode == "build"){
-      val path=args(1)
-      val data=args(2)
-      val trees=args(3).toInt
+      val strategy=args(1)
+      val path=args(2)
+      val data=args(3)
+      val trees=args(4).toInt
 
       var remoteJar : String =null
       var remoteHost : String =null
       var remotePort : Int =0
 
-      if(args.length > 4)
-        remoteJar=args(4)
       if(args.length > 5)
-        remoteHost=args(5)
+        remoteJar=args(5)
       if(args.length > 6)
-        remotePort=args(6).toInt
+        remoteHost=args(6)
+      if(args.length > 7)
+        remotePort=args(7).toInt
+
     new RandomForestBuilder(remoteJar,remoteHost,remotePort).build(
         path,
         data,
-        trees
+        trees,
+        strategy
         )
     } else  if(mode == "eval"){
       val path=args(1)
