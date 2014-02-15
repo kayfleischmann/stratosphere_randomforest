@@ -367,7 +367,7 @@ class DecisionTreeBuilder(var minNrOfItems: Int,
 											.isEqualTo { y => (y._1, y._2) }
 											.map({ (nodeResult, nodeFeatures) => 
 
-								  				val selectedFeatureForNode = nodeResult._3.toInt
+								  			val selectedFeatureForNode = nodeResult._3.toInt
 												val features = nodeFeatures._3.split(" ").map({ _.toInt }).filter(x => x != selectedFeatureForNode)
 												val featureSpace = DecisionTreeUtils.generateFeatureSubspace(featureSubspaceCount, features.toBuffer)
 												(	nodeResult._1, 
@@ -382,11 +382,13 @@ class DecisionTreeBuilder(var minNrOfItems: Int,
 											
 											
 		// output to tree file if featureIndex != -1 (node) or leaf (label detected)  
-		val treeLevelSink = finalnodes .write(outputTreePath, CsvOutputFormat(newLine, ","))
+		val treeLevelSink = finalnodes.write(outputTreePath, CsvOutputFormat(newLine, ","))
 									
 		// output nodes to build if 
-		val nodeQueueSink = nodeResultsWithFeatures .write(outputNodeQueuePath, CsvOutputFormat(newLine, ","))
-		
+		val nodeQueueSink = nodeResultsWithFeatures
+                            .degreeOfParallelism(1)
+                            .write(outputNodeQueuePath, CsvOutputFormat(newLine, ","))
+
 		// debug
 		val bestSplitSink = bestTreeNodeSplits .write(outputPath + "rf_bestsplits_" + treeLevel, CsvOutputFormat(newLine, ","))
 		

@@ -236,7 +236,8 @@ class RandomForestBuilder(val remoteJar : String = null,
 		val treeStreamWriter = new OutputStreamWriter(treeStream)
 		
 		do {
-			val plan = new DecisionTreeBuilder(70, featureSubspaceCount, level ).getPlan(
+      System.out.println("Iteration "+level)
+      val plan = new DecisionTreeBuilder(70, featureSubspaceCount, level ).getPlan(
                   inputPath,
                   inputNodeQueuePath,
                   outputNodeQueuePath,
@@ -252,7 +253,7 @@ class RandomForestBuilder(val remoteJar : String = null,
 			fileSystem.rename(new Path(new URI(outputNodeQueuePath)), new Path(new URI(inputNodeQueuePath)))
 
 			// check how many nodes to build
-			nodeQueueSize = mergeOutputResults(inputNodeQueuePath).size // mergeOutputResults(inputNodeQueuePath).length
+			nodeQueueSize = mergeOutputResults(inputNodeQueuePath).size
 
 
 			totalNodes += nodeQueueSize
@@ -279,12 +280,12 @@ class RandomForestBuilder(val remoteJar : String = null,
 		// stop measuring time
 		val t1 = System.currentTimeMillis
 
-		println("statistics");
-		println("build-time: " + ((t1 - t0) / 1000.0) / 60.0 + "mins")
-		println("samples: " + sampleCount)
-		println("features per sample: " + totalFeatureCount)
-		println("trees: " + numTrees)
-		println("tree-levels (iterations): " + (level - 1))
+    System.out.println("statistics");
+    System.out.println("build-time: " + ((t1 - t0) / 1000.0) / 60.0 + "mins")
+    System.out.println("samples: " + sampleCount)
+    System.out.println("features per sample: " + totalFeatureCount)
+    System.out.println("trees: " + numTrees)
+    System.out.println("tree-levels (iterations): " + (level - 1))
 	}
 	
 	/**
