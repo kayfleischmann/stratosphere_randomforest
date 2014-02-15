@@ -1,8 +1,8 @@
 package bigdataproject.scala.eu.stratosphere.test
 
-import bigdataproject.scala.eu.stratosphere.ml.randomforest.DecisionTreeBuilderStreaming
 import bigdataproject.scala.eu.stratosphere.ml.randomforest.RandomForestBuilder
 import bigdataproject.scala.eu.stratosphere.ml.randomforest.Histogram
+import bigdataproject.scala.eu.stratosphere.bigdataproject.scala.eu.stratosphere.ml.randomforest.decisiontree.builder.DistributedStreaming
 
 object testEvaluationOnStratosphere {
  

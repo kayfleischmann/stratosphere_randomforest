@@ -1,12 +1,9 @@
 package bigdataproject.scala.eu.stratosphere.ml.randomforest
 
-import eu.stratosphere.client.LocalExecutor
-import eu.stratosphere.api.common.Plan
 import eu.stratosphere.api.common.Program
 import eu.stratosphere.api.common.ProgramDescription
 import eu.stratosphere.api.scala._
 import eu.stratosphere.api.scala.operators._
-import scala.util.matching.Regex
 import util.Random
 import scala.collection.mutable.Buffer
 
@@ -119,10 +116,6 @@ class DecisionTreeBuilderBigReducer(var minNrOfItems: Int, var featureSubspaceCo
         // decide if there is a stopping condition
         val stoppingCondition = leftNode.isEmpty || rightNode.isEmpty || leftNode.lengthCompare(minNrOfItems) == -1 || rightNode.lengthCompare(minNrOfItems) == -1;
 
-        System.out.println(bestSplit)
-        System.out.println("right:" + rightNode.length)
-        System.out.println("left:" + leftNode.length)
-
         // serialize based on stopping condition
         if (stoppingCondition) {
           // compute the label by max count (uniform distribution)
@@ -133,15 +126,11 @@ class DecisionTreeBuilderBigReducer(var minNrOfItems: Int, var featureSubspaceCo
           List((treeId, nodeId, -1 /* feature*/ , 0.0 /*split*/ , label, "", "", ""))
 
         } else {
-          var left_nodeId = ((nodeId + 1) * 2) - 1
-          var right_nodeId = ((nodeId + 1) * 2)
+          val left_nodeId = ((nodeId + 1) * 2) - 1
+          val right_nodeId = ((nodeId + 1) * 2)
 
-          var left_baggingTable = leftNode.map({ x => x._1 }).mkString(" ")
-          var right_baggingTable = rightNode.map({ x => x._1 }).mkString(" ")
-
-          //System.out.println(bestSplit)
-          //System.out.println("leftnode: " + leftNode.length)
-          //System.out.println("rightnode: " + rightNode.length)
+          val left_baggingTable = leftNode.map({ x => x._1 }).mkString(" ")
+          val right_baggingTable = rightNode.map({ x => x._1 }).mkString(" ")
 
           List(
             // emit the tree node
@@ -223,6 +212,8 @@ class DecisionTreeBuilderBigReducer(var minNrOfItems: Int, var featureSubspaceCo
 
     new ScalaPlan(Seq(finalTreeNodesSink, nodeQueueSink, out1, out2))
   }
+
+
   // INPUT
   // List[(Int,Array[(Int,Double)])] => sampleList with featureIndex and value
   //							  List( (label, List(s1f1,s1f2,s1f3,..s1fN)), ... )
@@ -231,7 +222,6 @@ class DecisionTreeBuilderBigReducer(var minNrOfItems: Int, var featureSubspaceCo
   // Histogram histogram distribution
   // OUTPUT
   // (feature,candidate,quality)
-
   def split_quality(sampleList: List[(Int, Int, Array[(Int, Double)])],
                     feature: Int,
                     candidate: Double,
@@ -247,8 +237,6 @@ class DecisionTreeBuilderBigReducer(var minNrOfItems: Int, var featureSubspaceCo
       .groupBy(_._1) /*group by label */
       .map(x => (x._2.length.toDouble / totalSamples))
 
-    //System.out.println("feature:"+feature+"    candidate:"+candidate+"    "+h.uniform(10)+"     histogram:"+h.toString)
-
     // compute probability distribution for each child (Left,Right) and the current candidate with the specific label
     val qLj = featureList
       .filter({ case (label, sample) => sample._2 <= candidate })
@@ -260,10 +248,8 @@ class DecisionTreeBuilderBigReducer(var minNrOfItems: Int, var featureSubspaceCo
       .groupBy(_._1) /*group by label */
       .map(x => (x._2.length.toDouble / totalSamples))
 
-    // TODO: quality_function do not use the qj List, instead use the qLj list two times
     val tau = 0.5
     val quality = quality_function(tau, qj.toList, qLj.toList, qRj.toList);
-
     (feature, candidate, quality)
   }
 
@@ -293,5 +279,4 @@ class DecisionTreeBuilderBigReducer(var minNrOfItems: Int, var featureSubspaceCo
     }
     arr;
   }
-
 }

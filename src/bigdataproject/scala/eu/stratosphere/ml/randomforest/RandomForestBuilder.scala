@@ -1,5 +1,6 @@
 package bigdataproject.scala.eu.stratosphere.ml.randomforest
 
+
 import eu.stratosphere.client.LocalExecutor
 import scala.util.Random
 import java.io._
@@ -9,7 +10,6 @@ import org.apache.log4j.Level
 import eu.stratosphere.client.PlanExecutor
 import eu.stratosphere.client.RemoteExecutor
 import eu.stratosphere.core.fs.FileSystem
-import eu.stratosphere.core.fs.FileStatus
 import eu.stratosphere.core.fs.Path
 import bigdataproject.scala.eu.stratosphere.ml.randomforest.SampleCountEstimator
 import java.net.URI
@@ -44,8 +44,9 @@ class RandomForestBuilder(val remoteJar : String = null,
    count
 	}
 
-
-
+  /**
+  * Utility method to get the total path size (supporting one level depth)
+  */
   private def getPathSize( dir : String ) = {
     val fs : FileSystem = FileSystem.get(new URI(dir))
     val fileDetails = fs.getFileStatus(new Path(dir))
@@ -66,7 +67,9 @@ class RandomForestBuilder(val remoteJar : String = null,
     }
   }
 
-
+  /**
+   * Utility method to merge  many output files from a reducer
+   */
   private def mergeOutputResults( outputDir : String ) = {
     val fs : FileSystem = FileSystem.get(new URI(outputDir))
     val fileDetails = fs.getFileStatus(new Path(outputDir))
@@ -74,7 +77,6 @@ class RandomForestBuilder(val remoteJar : String = null,
       Source.fromInputStream(fs.open(new Path(new URI(outputDir)))).getLines
     }else {
       val lines = scala.collection.mutable.MutableList[String]()
-
       for( file <- fs.listStatus(new Path(new URI(outputDir))) ){
         val stream = Source.fromInputStream(fs.open(file.getPath))
         for( l <- stream.getLines() ){
@@ -82,7 +84,6 @@ class RandomForestBuilder(val remoteJar : String = null,
         }
         stream.close()
       }
-
       lines.toList
     }
   }
@@ -102,7 +103,6 @@ class RandomForestBuilder(val remoteJar : String = null,
 		}
 	}
 
-	
 	/** 
 	* Evaluates test data set based on the random forest model.
 	* 
@@ -148,14 +148,10 @@ class RandomForestBuilder(val remoteJar : String = null,
 			val wrong = lines.filter(x => x(1) != x(2)).length
 			System.out.println("wrong: " + wrong)
 			System.out.println("percentage: " + (correct.toDouble * 100 / lines.length.toDouble))
-
       percentage = (correct.toDouble * 100 / lines.length.toDouble)
-
-
     } finally {
 			src.close()
 		}
-
     percentage
 	}
 
@@ -189,7 +185,7 @@ class RandomForestBuilder(val remoteJar : String = null,
       System.out.println("Stratosphere using remotee xecutor ip:"+remoteJobManager+" port:"+remoteJobManagerPort+" jar:"+remoteJar)
 	  }
 
-	  //TODO: Use DecisionTreeUtils.preParseURI() here?
+    // dependent on the path decription choose the correct filesystem to work with
     val fileSystem : FileSystem = FileSystem.get( new URI(outputPath) )
 		val newLine = System.getProperty("line.separator");
 
@@ -241,7 +237,7 @@ class RandomForestBuilder(val remoteJar : String = null,
       System.out.println("Iteration "+level)
       var plan : Plan = null
       if (build_strategy == "streaming") {
-        plan = new DecisionTreeBuilderStreaming(70, featureSubspaceCount, level ).getPlan(
+        plan = new DecisionTreeBuilderDistributedStreaming(70, featureSubspaceCount, level ).getPlan(
                   inputPath,
                   inputNodeQueuePath,
                   outputNodeQueuePath,
