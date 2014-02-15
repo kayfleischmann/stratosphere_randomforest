@@ -1,9 +1,7 @@
 package bigdataproject.scala.eu.stratosphere.test
 
 import org.junit.{After, Before, Test}
-import org.junit.Assert._
 import org.scalatest.junit.JUnitSuite
-import scala.util.Random
 import bigdataproject.scala.eu.stratosphere.ml.randomforest.RandomForestBuilder
 import org.junit.rules.TemporaryFolder
 import java.io.{File, PrintWriter}
@@ -43,7 +41,8 @@ class testRandomForest extends JUnitSuite  {
     new RandomForestBuilder().build(
       testFolder,
       testTrainingSet,
-      numberTrees
+      numberTrees,
+      "streaming"
     )
 
     val percentage =
