@@ -19,6 +19,10 @@ Test data should be separated by a new line. Each line should be formatted accor
 	 * [[bigdataproject.scala.eu.stratosphere.ml.randomforest.RandomForestBuilder]] for every level of
 	 * the forest, in case there are nodes to split on that level.
 	 * 
+	 * @param strategy we have implemented two different version to build the random decision tree
+	 * 	  streaming	- this strategy computes the node distributions in a streaming fashion
+	 * 	  bigreducer	- this strategy distributed the constructs of node-distributions to all nodes 
+	 * 
 	 * @param outputPath Folder that will contain the output model at outputPath\rf_output_tree
 	 * 
 	 * @param dataFilePath Test data set. Format:
@@ -30,8 +34,9 @@ Test data should be separated by a new line. Each line should be formatted accor
 
 **Usage on a cluster**
 
+
 	
-	java -cp /stratosphere-path/stratosphere/lib/*:stratosphere_randomforest.jar bigdataproject.scala.eu.stratosphere.ml.randomforest.RandomForestExecutor build dest-path data-src numb-trees [remoteJar remoteHost remotePort]
+	java -cp /stratosphere-path/stratosphere/lib/*:stratosphere_randomforest.jar bigdataproject.scala.eu.stratosphere.ml.randomforest.RandomForestExecutor build [strategy] dest-path data-src numb-trees [remoteJar remoteHost remotePort]
 	
 
 Using the random forest to evaluate/classify data
