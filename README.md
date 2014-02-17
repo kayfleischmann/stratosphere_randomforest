@@ -30,10 +30,13 @@ Test data should be separated by a new line. Each line should be formatted accor
 
 **Usage on a cluster**
 
-	java -cp ... ... 
+	
+Building trees using jars
+-------------
+	java -cp /stratosphere-path/stratosphere/lib/*:stratosphere_randomforest.jar bigdataproject.scala.eu.stratosphere.ml.randomforest.RandomForestExecutor build dest-path data-src numb-trees [remoteJar remoteHost remotePort]
+	
 
-
-Using the random forest to classify data
+Using the random forest to evaluate/classify data
 --------------
 
 **Data format**
@@ -57,17 +60,10 @@ Test data should be in the same format as for creating the random forest.
 
 **Usage on a cluster**
 
-	stratosphere run ... ...
-	
-	
-Building trees using jars
--------------
-java -cp /stratosphere-path/stratosphere/lib/*:stratosphere_randomforest.jar bigdataproject.scala.eu.stratosphere.ml.randomforest.RandomForestExecutor build dest-path data-src numb-trees [remoteJar remoteHost remotePort]
-
 
 Evaluate random-forst using jars
 -------------
-java -cp /stratosphere-path/stratosphere/lib/*:stratosphere_randomforest.jar bigdataproject.scala.eu.stratosphere.ml.randomforest.RandomForestExecutor eval dest-path data-src [remoteJar remoteHost remotePort]
+	java -cp /stratosphere-path/stratosphere/lib/*:stratosphere_randomforest.jar bigdataproject.scala.eu.stratosphere.ml.randomforest.RandomForestExecutor eval dest-path data-src [remoteJar remoteHost remotePort]
 
 
 
