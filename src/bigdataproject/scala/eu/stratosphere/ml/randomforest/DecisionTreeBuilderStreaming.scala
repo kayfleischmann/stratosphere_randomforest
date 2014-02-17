@@ -4,8 +4,6 @@ import eu.stratosphere.api.common.Program
 import eu.stratosphere.api.common.ProgramDescription
 import eu.stratosphere.api.scala._
 import eu.stratosphere.api.scala.operators._
-import util.Random
-import scala.collection.mutable.Buffer
 import eu.stratosphere.compiler.PactCompiler
 
 
@@ -134,11 +132,6 @@ class DecisionTreeBuilderStreaming(var minNrOfItems: Int,
       .where( { x => (x._1,x._2,x._3) })
       .isEqualTo { x => (x._1,x._2,x._3) }
       .map({ (nodeHistogram, nodeSampleFeature) =>
-      c1=c1+1;
-      if(c1%100000 == 0 ){
-        System.out.println("nodeFeatureDistributions counter "+c1)
-      }
-
       (
         nodeHistogram._1, /*treeId */
         nodeHistogram._2, /*nodeId */

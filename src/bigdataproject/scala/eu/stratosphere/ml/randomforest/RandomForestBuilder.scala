@@ -182,7 +182,7 @@ class RandomForestBuilder(val remoteJar : String = null,
       System.out.println("Stratosphere using local executor")
     } else {
 	    ex = new RemoteExecutor(remoteJobManager, remoteJobManagerPort, remoteJar );
-      System.out.println("Stratosphere using remotee xecutor ip:"+remoteJobManager+" port:"+remoteJobManagerPort+" jar:"+remoteJar)
+      System.out.println("Stratosphere using remote executor ip:"+remoteJobManager+" port:"+remoteJobManagerPort+" jar:"+remoteJar)
 	  }
 
     // dependent on the path decription choose the correct filesystem to work with
@@ -191,10 +191,6 @@ class RandomForestBuilder(val remoteJar : String = null,
 
 		// start measuring time
 		val t0 = System.currentTimeMillis
-		System.out.println(inputPath)
-
-    System.out.println(outputPath)
-    System.out.println(new URI(outputPath) )
 
 
     var nodesQueue = Buffer[TreeNode]()
@@ -237,7 +233,7 @@ class RandomForestBuilder(val remoteJar : String = null,
       System.out.println("Iteration "+level)
       var plan : Plan = null
       if (build_strategy == "streaming") {
-        plan = new DecisionTreeBuilderDistributedStreaming(70, featureSubspaceCount, level ).getPlan(
+        plan = new DecisionTreeBuilderStreaming(70, featureSubspaceCount, level ).getPlan(
                   inputPath,
                   inputNodeQueuePath,
                   outputNodeQueuePath,
